@@ -1,8 +1,9 @@
-import { useMemo, useRef, useState } from 'react';
+import { type PointerEvent, useMemo, useRef, useState } from 'react';
 import {
   Bell, ChevronLeft, Filter, Heart, Home, MessageCircle,
   Plus, Search, Settings, SlidersHorizontal, User, X
 } from 'lucide-react';
+import '../styles/gestures.css';
 
 type Screen = 'feed' | 'explore' | 'create' | 'likes' | 'profile' | 'product' | 'messages' | 'filters';
 type SwipeDirection = 'left' | 'right' | 'back' | null;
@@ -35,7 +36,12 @@ export default function App() {
   const [swipeDirection, setSwipeDirection] = useState<SwipeDirection>(null);
   const [feedTab, setFeedTab] = useState('Для вас');
   const [screenKey, setScreenKey] = useState(0);
+  const [dragX, setDragX] = useState(0);
+  const [dragging, setDragging] = useState(false);
   const noticeTimer = useRef<number | null>(null);
+  const dragStartX = useRef(0);
+  const dragMoved = useRef(false);
+  const activePointer = useRef<number | null>(null);
   const product = products[index % products.length];
 
   const filtered = useMemo(() => products.filter((item) =>
@@ -61,6 +67,7 @@ export default function App() {
     window.setTimeout(() => {
       callback();
       setSwipeDirection(null);
+      setDragX(0);
     }, 300);
   };
 
@@ -73,6 +80,43 @@ export default function App() {
     showNotice('Добавлено в избранное');
     setIndex((value) => (value + 1) % products.length);
   });
+
+  const onCardPointerDown = (event: PointerEvent<HTMLElement>) => {
+    if (swipeDirection) return;
+    activePointer.current = event.pointerId;
+    dragStartX.current = event.clientX;
+    dragMoved.current = false;
+    setDragging(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const onCardPointerMove = (event: PointerEvent<HTMLElement>) => {
+    if (!dragging || activePointer.current !== event.pointerId) return;
+    const distance = event.clientX - dragStartX.current;
+    if (Math.abs(distance) > 5) dragMoved.current = true;
+    setDragX(Math.max(-220, Math.min(220, distance)));
+  };
+
+  const finishDrag = (event: PointerEvent<HTMLElement>) => {
+    if (activePointer.current !== event.pointerId) return;
+    setDragging(false);
+    activePointer.current = null;
+    const threshold = Math.min(105, window.innerWidth * 0.24);
+    if (dragX > threshold) {
+      setDragX(0);
+      saveCurrent();
+    } else if (dragX < -threshold) {
+      setDragX(0);
+      next();
+    } else {
+      setDragX(0);
+    }
+  };
+
+  const cardStyle = dragging || dragX !== 0 ? {
+    transform: `translate3d(${dragX}px, 0, 0) rotate(${dragX / 22}deg)`,
+    transition: dragging ? 'none' : 'transform 260ms cubic-bezier(.22,1,.36,1)',
+  } : undefined;
 
   const Header = ({ title = 'DRIPLY', back = false }: { title?: string; back?: boolean }) => (
     <header className="topbar motion-header">
@@ -95,16 +139,25 @@ export default function App() {
       <section className="swipe-stage">
         <div className="card-stack-shadow card-stack-shadow-one" />
         <div className="card-stack-shadow card-stack-shadow-two" />
-        <article key={product.id} className={`product-card card-enter ${swipeDirection ? `swipe-${swipeDirection}` : ''}`} onClick={() => navigate('product')}>
-          <img src={product.image} alt={product.title} />
+        <article
+          key={product.id}
+          className={`product-card card-enter draggable-card ${dragging ? 'is-dragging' : ''} ${swipeDirection ? `swipe-${swipeDirection}` : ''}`}
+          style={cardStyle}
+          onPointerDown={onCardPointerDown}
+          onPointerMove={onCardPointerMove}
+          onPointerUp={finishDrag}
+          onPointerCancel={finishDrag}
+          onClick={() => { if (!dragMoved.current) navigate('product'); }}
+        >
+          <img src={product.image} alt={product.title} draggable={false} />
           <div className="image-shine" />
           <div className="product-gradient" />
           <div className="product-copy top-copy"><span className="eyebrow">{product.brand}</span><span>{product.title}</span></div>
           <span className="new-badge">НОВОЕ</span>
           <div className="product-copy bottom-copy"><span>{product.size} · {product.city}</span><strong>{product.price}</strong></div>
           <span className="likes"><Heart size={16} /> {product.likes}</span>
-          <div className="swipe-stamp stamp-like">В ИЗБРАННОЕ</div>
-          <div className="swipe-stamp stamp-skip">ПРОПУСТИТЬ</div>
+          <div className="swipe-stamp stamp-like live-stamp" style={{ opacity: Math.max(0, Math.min(1, dragX / 90)) }}>В ИЗБРАННОЕ</div>
+          <div className="swipe-stamp stamp-skip live-stamp" style={{ opacity: Math.max(0, Math.min(1, -dragX / 90)) }}>ПРОПУСТИТЬ</div>
         </article>
       </section>
       <section className="swipe-actions motion-actions">
@@ -113,32 +166,16 @@ export default function App() {
         <button className={`round primary pressable like-action ${liked.includes(product.id) ? 'is-liked' : ''}`} onClick={saveCurrent} aria-label="Сохранить"><Heart fill="currentColor" /></button>
         <button className="round secondary pressable boost-action" onClick={() => showNotice('Продвижение появится позже')} aria-label="Продвижение">⚡</button>
       </section>
-      <p className="swipe-hint">Листайте карточки или используйте кнопки</p>
+      <p className="swipe-hint">Свайп влево — пропустить · вправо — сохранить</p>
     </>
   );
 
   const ProductScreen = () => (
-    <>
-      <Header title="Товар" back />
-      <div className="detail-image-wrap"><img className="detail-image" src={product.image} alt={product.title} /><span className="image-counter">1 / 4</span></div>
-      <section className="detail-card stagger-group">
-        <div className="detail-title"><div><b>{product.brand}</b><h1>{product.title}</h1></div><button className={`icon-button pressable favorite-toggle ${liked.includes(product.id) ? 'is-liked' : ''}`} onClick={() => { toggleLike(product.id); showNotice(liked.includes(product.id) ? 'Удалено из избранного' : 'Добавлено в избранное'); }}><Heart fill={liked.includes(product.id) ? 'currentColor' : 'none'} /></button></div>
-        <strong className="detail-price">{product.price}</strong>
-        <div className="spec-grid"><span><small>Размер</small>{product.size}</span><span><small>Состояние</small>{product.condition}</span><span><small>Город</small>{product.city}</span></div>
-        <h3>Продавец</h3>
-        <div className="seller-row interactive-row"><div className="avatar">Д</div><div><b>drip.collector</b><small>★ 4.9 · 124 отзыва</small></div><button className="pressable" onClick={() => navigate('profile')}>Профиль</button></div>
-        <h3>Описание</h3><p>Оригинальная вещь в отличном состоянии. Без повреждений. Возможна личная встреча или отправка.</p>
-        <button className="primary-button pressable" onClick={() => navigate('messages')}><MessageCircle size={19} /> Написать продавцу</button>
-      </section>
-    </>
+    <><Header title="Товар" back /><div className="detail-image-wrap"><img className="detail-image" src={product.image} alt={product.title} /><span className="image-counter">1 / 4</span></div><section className="detail-card stagger-group"><div className="detail-title"><div><b>{product.brand}</b><h1>{product.title}</h1></div><button className={`icon-button pressable favorite-toggle ${liked.includes(product.id) ? 'is-liked' : ''}`} onClick={() => { toggleLike(product.id); showNotice(liked.includes(product.id) ? 'Удалено из избранного' : 'Добавлено в избранное'); }}><Heart fill={liked.includes(product.id) ? 'currentColor' : 'none'} /></button></div><strong className="detail-price">{product.price}</strong><div className="spec-grid"><span><small>Размер</small>{product.size}</span><span><small>Состояние</small>{product.condition}</span><span><small>Город</small>{product.city}</span></div><h3>Продавец</h3><div className="seller-row interactive-row"><div className="avatar">Д</div><div><b>drip.collector</b><small>★ 4.9 · 124 отзыва</small></div><button className="pressable" onClick={() => navigate('profile')}>Профиль</button></div><h3>Описание</h3><p>Оригинальная вещь в отличном состоянии. Без повреждений. Возможна личная встреча или отправка.</p><button className="primary-button pressable" onClick={() => navigate('messages')}><MessageCircle size={19} /> Написать продавцу</button></section></>
   );
 
   const Explore = () => (
-    <><Header title="Поиск" back />
-      <div className="search-box motion-search"><Search size={19} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Бренд, категория или город" /><button className="pressable" onClick={() => navigate('filters')}><Filter size={19} /></button></div>
-      <div className="chips motion-chips"><button className="selected">Всё</button><button>Куртки</button><button>Худи</button><button>Кроссовки</button></div>
-      <div className="product-grid stagger-grid">{filtered.map((item) => <button key={item.id} className="grid-item pressable-card" onClick={() => { setIndex(products.findIndex((p) => p.id === item.id)); navigate('product'); }}><div className="grid-image-wrap"><img src={item.image} alt={item.title} /><Heart className={liked.includes(item.id) ? 'grid-heart liked' : 'grid-heart'} size={18} fill={liked.includes(item.id) ? 'currentColor' : 'none'} /></div><b>{item.price}</b><span>{item.brand}</span></button>)}</div>
-    </>
+    <><Header title="Поиск" back /><div className="search-box motion-search"><Search size={19} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Бренд, категория или город" /><button className="pressable" onClick={() => navigate('filters')}><Filter size={19} /></button></div><div className="chips motion-chips"><button className="selected">Всё</button><button>Куртки</button><button>Худи</button><button>Кроссовки</button></div><div className="product-grid stagger-grid">{filtered.map((item) => <button key={item.id} className="grid-item pressable-card" onClick={() => { setIndex(products.findIndex((p) => p.id === item.id)); navigate('product'); }}><div className="grid-image-wrap"><img src={item.image} alt={item.title} /><Heart className={liked.includes(item.id) ? 'grid-heart liked' : 'grid-heart'} size={18} fill={liked.includes(item.id) ? 'currentColor' : 'none'} /></div><b>{item.price}</b><span>{item.brand}</span></button>)}</div></>
   );
 
   const Likes = () => (
@@ -146,14 +183,7 @@ export default function App() {
   );
 
   const Create = () => (
-    <><Header title="Новое объявление" back /><form className="form stagger-group" onSubmit={(e) => { e.preventDefault(); showNotice('Объявление сохранено'); navigate('profile'); }}>
-      <button type="button" className="upload pressable"><span className="upload-plus">＋</span><b>Добавить фотографии</b><span>До 10 изображений</span></button>
-      <label>Название<input required placeholder="Например, винтажная куртка Nike" /></label>
-      <label>Бренд<input required placeholder="Nike" /></label>
-      <div className="form-row"><label>Размер<input placeholder="M" /></label><label>Цена<input type="number" placeholder="250" /></label></div>
-      <label>Описание<textarea rows={5} placeholder="Состояние, особенности, доставка..." /></label>
-      <button className="primary-button pressable" type="submit">Опубликовать</button>
-    </form></>
+    <><Header title="Новое объявление" back /><form className="form stagger-group" onSubmit={(e) => { e.preventDefault(); showNotice('Объявление сохранено'); navigate('profile'); }}><button type="button" className="upload pressable"><span className="upload-plus">＋</span><b>Добавить фотографии</b><span>До 10 изображений</span></button><label>Название<input required placeholder="Например, винтажная куртка Nike" /></label><label>Бренд<input required placeholder="Nike" /></label><div className="form-row"><label>Размер<input placeholder="M" /></label><label>Цена<input type="number" placeholder="250" /></label></div><label>Описание<textarea rows={5} placeholder="Состояние, особенности, доставка..." /></label><button className="primary-button pressable" type="submit">Опубликовать</button></form></>
   );
 
   const Profile = () => (
