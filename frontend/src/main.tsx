@@ -4,6 +4,7 @@ import App from './app/App';
 import { preventPullToRefresh } from './lib/preventPullToRefresh';
 import './styles/global.css';
 import './styles/mobile.css';
+import './styles/scroll-lock.css';
 
 preventPullToRefresh();
 
