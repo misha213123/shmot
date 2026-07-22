@@ -1,0 +1,204 @@
+/* Mobile Safari and small-screen layout fixes */
+
+@supports (height: 100dvh) {
+  .app-shell {
+    min-height: 100dvh;
+  }
+}
+
+@media (max-width: 600px) {
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    overscroll-behavior-y: none;
+  }
+
+  .app-shell {
+    width: 100%;
+    min-height: 100svh;
+    padding-top: max(12px, env(safe-area-inset-top));
+    padding-right: 14px;
+    padding-left: 14px;
+    padding-bottom: calc(94px + env(safe-area-inset-bottom));
+    overflow: visible;
+  }
+
+  .topbar {
+    min-height: 54px;
+  }
+
+  .brand strong {
+    font-size: 22px;
+  }
+
+  .feed-tabs {
+    margin: 10px 0 10px;
+  }
+
+  .feed-tabs button {
+    padding: 9px 2px 11px;
+    font-size: clamp(14px, 4.2vw, 17px);
+  }
+
+  .swipe-stage {
+    width: 100%;
+  }
+
+  .product-card {
+    aspect-ratio: auto;
+    height: clamp(410px, calc(100dvh - 300px), 610px);
+    min-height: 410px;
+    max-height: 68svh;
+    border-radius: 18px;
+  }
+
+  .card-stack-shadow {
+    height: calc(100% - 5px);
+  }
+
+  .top-copy {
+    top: 18px;
+    left: 17px;
+  }
+
+  .bottom-copy {
+    left: 17px;
+    bottom: 17px;
+  }
+
+  .bottom-copy strong {
+    font-size: clamp(29px, 9vw, 38px);
+  }
+
+  .new-badge {
+    top: 16px;
+    right: 14px;
+  }
+
+  .likes {
+    right: 16px;
+    bottom: 18px;
+  }
+
+  .app-shell:has(.swipe-stage) .swipe-actions {
+    position: sticky;
+    bottom: calc(76px + env(safe-area-inset-bottom));
+    z-index: 12;
+    width: calc(100% + 28px);
+    margin: 12px -14px 0;
+    padding: 10px 14px 8px;
+    gap: 12px;
+    background: linear-gradient(to bottom, rgba(251, 250, 248, 0), rgba(251, 250, 248, 0.94) 25%, rgba(251, 250, 248, 0.98));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .round {
+    width: 52px;
+    height: 52px;
+  }
+
+  .round.primary {
+    width: 60px;
+    height: 60px;
+  }
+
+  .swipe-hint {
+    margin: 4px 0 8px;
+    padding-bottom: 4px;
+  }
+
+  .bottom-nav {
+    width: 100%;
+    bottom: 0;
+    padding: 9px 10px calc(8px + env(safe-area-inset-bottom));
+    min-height: calc(70px + env(safe-area-inset-bottom));
+    border-radius: 0;
+    box-shadow: 0 -10px 30px rgba(20, 18, 15, 0.07);
+  }
+
+  .bottom-nav button {
+    min-width: 0;
+    font-size: 10px;
+  }
+
+  .bottom-nav svg {
+    width: 21px;
+    height: 21px;
+  }
+
+  .bottom-nav .create {
+    width: 48px;
+    height: 48px;
+  }
+
+  .detail-image {
+    max-height: 58dvh;
+  }
+}
+
+@media (max-width: 390px), (max-height: 740px) {
+  .app-shell {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .brand span {
+    display: none;
+  }
+
+  .topbar {
+    min-height: 44px;
+  }
+
+  .feed-tabs {
+    margin-top: 4px;
+  }
+
+  .product-card {
+    height: clamp(350px, calc(100dvh - 275px), 490px);
+    min-height: 350px;
+  }
+
+  .app-shell:has(.swipe-stage) .swipe-actions {
+    width: calc(100% + 24px);
+    margin-left: -12px;
+    margin-right: -12px;
+    gap: 9px;
+    padding-top: 7px;
+  }
+
+  .round {
+    width: 47px;
+    height: 47px;
+  }
+
+  .round.primary {
+    width: 55px;
+    height: 55px;
+  }
+
+  .swipe-hint {
+    display: none;
+  }
+
+  .bottom-nav span {
+    font-size: 9px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .product-card {
+    height: 320px;
+    min-height: 320px;
+  }
+
+  .brand span,
+  .swipe-hint {
+    display: none;
+  }
+}
