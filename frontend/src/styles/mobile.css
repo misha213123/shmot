@@ -24,7 +24,7 @@
     padding-right: 14px;
     padding-left: 14px;
     padding-bottom: calc(94px + env(safe-area-inset-bottom));
-    overflow: visible;
+    overflow-x: hidden;
   }
 
   .topbar {
@@ -50,9 +50,9 @@
 
   .product-card {
     aspect-ratio: auto;
-    height: clamp(410px, calc(100dvh - 300px), 610px);
-    min-height: 410px;
-    max-height: 68svh;
+    height: clamp(380px, calc(100dvh - 310px), 590px);
+    min-height: 380px;
+    max-height: 65svh;
     border-radius: 18px;
   }
 
@@ -84,17 +84,31 @@
     bottom: 18px;
   }
 
+  /* The Safari toolbar changes the visible viewport while scrolling.
+     Keep product actions fixed above our own navigation instead of inside
+     the scrolling document, so they cannot disappear below the browser UI. */
+  .app-shell:has(.swipe-stage) .screen-transition {
+    padding-bottom: 118px;
+  }
+
   .app-shell:has(.swipe-stage) .swipe-actions {
-    position: sticky;
-    bottom: calc(76px + env(safe-area-inset-bottom));
-    z-index: 12;
-    width: calc(100% + 28px);
-    margin: 12px -14px 0;
-    padding: 10px 14px 8px;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(70px + env(safe-area-inset-bottom));
+    z-index: 18;
+    width: min(100%, 430px);
+    margin: 0 auto;
+    padding: 10px 14px 9px;
     gap: 12px;
-    background: linear-gradient(to bottom, rgba(251, 250, 248, 0), rgba(251, 250, 248, 0.94) 25%, rgba(251, 250, 248, 0.98));
+    background: linear-gradient(to bottom, rgba(251,250,248,0), rgba(251,250,248,.94) 27%, rgba(251,250,248,.99));
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
+    pointer-events: none;
+  }
+
+  .app-shell:has(.swipe-stage) .swipe-actions button {
+    pointer-events: auto;
   }
 
   .round {
@@ -108,8 +122,7 @@
   }
 
   .swipe-hint {
-    margin: 4px 0 8px;
-    padding-bottom: 4px;
+    display: none;
   }
 
   .bottom-nav {
@@ -119,6 +132,7 @@
     min-height: calc(70px + env(safe-area-inset-bottom));
     border-radius: 0;
     box-shadow: 0 -10px 30px rgba(20, 18, 15, 0.07);
+    z-index: 20;
   }
 
   .bottom-nav button {
@@ -160,16 +174,13 @@
   }
 
   .product-card {
-    height: clamp(350px, calc(100dvh - 275px), 490px);
-    min-height: 350px;
+    height: clamp(330px, calc(100dvh - 285px), 470px);
+    min-height: 330px;
   }
 
   .app-shell:has(.swipe-stage) .swipe-actions {
-    width: calc(100% + 24px);
-    margin-left: -12px;
-    margin-right: -12px;
     gap: 9px;
-    padding-top: 7px;
+    padding: 7px 12px 8px;
   }
 
   .round {
@@ -182,10 +193,6 @@
     height: 55px;
   }
 
-  .swipe-hint {
-    display: none;
-  }
-
   .bottom-nav span {
     font-size: 9px;
   }
@@ -193,8 +200,8 @@
 
 @media (orientation: landscape) and (max-height: 520px) {
   .product-card {
-    height: 320px;
-    min-height: 320px;
+    height: 300px;
+    min-height: 300px;
   }
 
   .brand span,
