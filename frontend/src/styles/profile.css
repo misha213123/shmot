@@ -1,0 +1,156 @@
+/* Full marketplace profile layout */
+
+.screen-transition:has(.profile-head) {
+  padding-bottom: 28px;
+}
+
+.profile-head {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  grid-template-areas:
+    "avatar identity"
+    "stats stats"
+    "actions actions";
+  align-items: center;
+  gap: 10px 18px;
+  margin: 12px 0 0;
+  padding: 14px 4px 18px;
+  text-align: left;
+}
+
+.profile-head .avatar.large {
+  grid-area: avatar;
+  width: 88px;
+  height: 88px;
+  margin: 0;
+  border-radius: 50%;
+  font-size: 32px;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, .12);
+}
+
+.profile-head h2 {
+  grid-area: identity;
+  align-self: end;
+  margin: 0 0 28px;
+  font-size: clamp(20px, 5.5vw, 25px);
+  line-height: 1.1;
+}
+
+.profile-head p {
+  grid-area: identity;
+  align-self: end;
+  margin: 0 0 2px;
+  color: #77736f;
+  font-size: 14px;
+}
+
+.profile-head::before {
+  grid-area: stats;
+  content: "28\AОбъявлений\00a0\00a0\00a0\00a0 1,2K\AПодписчиков\00a0\00a0\00a0\00a0 342\AПодписки";
+  white-space: pre-wrap;
+  display: block;
+  padding: 16px 4px 14px;
+  border-top: 1px solid #ece9e5;
+  border-bottom: 1px solid #ece9e5;
+  color: #77736f;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.45;
+  text-align: center;
+  word-spacing: 14px;
+}
+
+.profile-head::after {
+  grid-area: actions;
+  content: "Редактировать профиль     Сообщения";
+  display: block;
+  padding: 12px 10px;
+  border: 1px solid #dedad5;
+  border-radius: 13px;
+  background: #fff;
+  color: #171615;
+  font-size: 13px;
+  font-weight: 750;
+  text-align: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .035);
+}
+
+.screen-transition:has(.profile-head) .product-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0 -2px;
+}
+
+.screen-transition:has(.profile-head) .product-grid::before {
+  content: "Активные     Проданные     Архив";
+  grid-column: 1 / -1;
+  display: block;
+  margin-bottom: 4px;
+  padding: 13px 2px 12px;
+  border-bottom: 1px solid #dedad5;
+  color: #6f6b67;
+  font-size: 12px;
+  font-weight: 750;
+  text-align: center;
+  word-spacing: 16px;
+}
+
+.screen-transition:has(.profile-head) .grid-item {
+  min-width: 0;
+  padding: 0 0 8px;
+  text-align: left;
+}
+
+.screen-transition:has(.profile-head) .grid-item img,
+.screen-transition:has(.profile-head) .grid-image-wrap {
+  width: 100%;
+  aspect-ratio: 1 / 1.22;
+  border-radius: 10px;
+  object-fit: cover;
+  overflow: hidden;
+}
+
+.screen-transition:has(.profile-head) .grid-item b {
+  display: block;
+  margin-top: 6px;
+  font-size: clamp(11px, 3vw, 14px);
+  line-height: 1.15;
+}
+
+.screen-transition:has(.profile-head) .grid-item span {
+  display: block;
+  margin-top: 3px;
+  overflow: hidden;
+  color: #77736f;
+  font-size: 10px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 380px) {
+  .profile-head {
+    grid-template-columns: 76px minmax(0, 1fr);
+    gap: 8px 14px;
+  }
+
+  .profile-head .avatar.large {
+    width: 74px;
+    height: 74px;
+    font-size: 27px;
+  }
+
+  .profile-head h2 {
+    margin-bottom: 25px;
+    font-size: 20px;
+  }
+
+  .profile-head::before {
+    word-spacing: 8px;
+  }
+
+  .screen-transition:has(.profile-head) .product-grid {
+    gap: 5px;
+  }
+}
