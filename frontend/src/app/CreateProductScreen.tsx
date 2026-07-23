@@ -1,5 +1,5 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
-import { Camera, Check, LoaderCircle, Trash2, X } from 'lucide-react';
+import { Camera, Check, LoaderCircle, MapPin, PackageCheck, Trash2, X } from 'lucide-react';
 
 import { api, type ApiProduct, type ApiProfile } from '../lib/api';
 import { supabase } from '../lib/supabase';
@@ -16,6 +16,10 @@ type SelectedImage = {
   preview: string;
 };
 
+type DeliveryMode = 'meetup' | 'shipping' | 'both';
+
+const STORAGE_BUCKET = 'product-images';
+
 const currencyByCountry: Record<string, string> = {
   RU: 'RUB',
   BY: 'BYN',
@@ -23,6 +27,12 @@ const currencyByCountry: Record<string, string> = {
   UA: 'UAH',
   AM: 'AMD',
   GE: 'GEL',
+};
+
+const deliveryText: Record<DeliveryMode, string> = {
+  meetup: 'Личная встреча',
+  shipping: 'Отправка',
+  both: 'Личная встреча или отправка',
 };
 
 export default function CreateProductScreen({ profile, onBack, onCreated }: Props) {
@@ -35,7 +45,7 @@ export default function CreateProductScreen({ profile, onBack, onCreated }: Prop
   const [color, setColor] = useState('');
   const [price, setPrice] = useState('');
   const [description, setDescription] = useState('');
-  const [delivery, setDelivery] = useState('Личная встреча или отправка');
+  const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>('both');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -54,6 +64,7 @@ export default function CreateProductScreen({ profile, onBack, onCreated }: Prop
       const added = files.slice(0, freeSlots).map((file) => ({ file, preview: URL.createObjectURL(file) }));
       return [...current, ...added];
     });
+    setError('');
     event.target.value = '';
   };
 
@@ -70,14 +81,28 @@ export default function CreateProductScreen({ profile, onBack, onCreated }: Prop
 
     for (let index = 0; index < images.length; index += 1) {
       const image = images[index];
-      const extension = image.file.name.split('.').pop()?.toLowerCase() || 'jpg';
-      const path = `${profile.id}/${crypto.randomUUID()}.${extension}`;
-      const { error: uploadError } = await supabase.storage
-        .from('product-images')
-        .upload(path, image.file, { cacheControl: '3600', upsert: false });
+      const extension = image.file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+      const path = `${profile.id}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
 
-      if (uploadError) throw new Error(`Не удалось загрузить фото: ${uploadError.message}`);
-      const { data } = supabase.storage.from('product-images').getPublicUrl(path);
+      const { error: uploadError } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .upload(path, image.file, {
+          cacheControl: '3600',
+          contentType: image.file.type,
+          upsert: false,
+        });
+
+      if (uploadError) {
+        if (/bucket not found/i.test(uploadError.message)) {
+          throw new Error('Хранилище фотографий ещё не создано. Нужно один раз создать bucket product-images в Supabase Storage.');
+        }
+        if (/row-level security|policy|permission|unauthorized/i.test(uploadError.message)) {
+          throw new Error('Supabase запретил загрузку фото. Проверь политики Storage для bucket product-images.');
+        }
+        throw new Error(`Не удалось загрузить фото: ${uploadError.message}`);
+      }
+
+      const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
       uploaded.push({ url: data.publicUrl, position: index, is_cover: index === 0 });
     }
 
@@ -108,7 +133,7 @@ export default function CreateProductScreen({ profile, onBack, onCreated }: Prop
         currency,
         country_code: profile.country_code,
         city: profile.city,
-        delivery: delivery.trim() || undefined,
+        delivery: deliveryText[deliveryMode],
         images: uploadedImages,
       });
       onCreated(product);
@@ -146,7 +171,7 @@ export default function CreateProductScreen({ profile, onBack, onCreated }: Prop
           )}
         </div>
 
-        <p className="create-hint">Первое фото станет обложкой. Нажимай на товар — покупатель сможет листать остальные фотографии.</p>
+        <p className="create-hint">Первое фото станет обложкой. Покупатель сможет переключать остальные фотографии нажатием.</p>
 
         <label>Название<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Например, худи оверсайз" minLength={3} required /></label>
         <label>Бренд<input value={brand} onChange={(event) => setBrand(event.target.value)} placeholder="Nike, Stone Island..." required /></label>
@@ -163,7 +188,21 @@ export default function CreateProductScreen({ profile, onBack, onCreated }: Prop
 
         <label>Цена<div className="price-field"><input type="number" inputMode="decimal" min="1" value={price} onChange={(event) => setPrice(event.target.value)} placeholder="0" required /><span>{currency}</span></div></label>
         <label>Описание<textarea rows={5} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Состояние, замеры, комплект, особенности..." minLength={10} required /></label>
-        <label>Доставка<input value={delivery} onChange={(event) => setDelivery(event.target.value)} /></label>
+
+        <fieldset className="delivery-picker">
+          <legend>Получение товара</legend>
+          <div className="delivery-options">
+            <button type="button" className={deliveryMode === 'meetup' ? 'active' : ''} onClick={() => setDeliveryMode('meetup')}>
+              <MapPin size={20} /><span><b>Личная встреча</b><small>Покупатель заберёт товар лично</small></span>
+            </button>
+            <button type="button" className={deliveryMode === 'shipping' ? 'active' : ''} onClick={() => setDeliveryMode('shipping')}>
+              <PackageCheck size={20} /><span><b>Отправка</b><small>Доставка в другой город</small></span>
+            </button>
+            <button type="button" className={deliveryMode === 'both' ? 'active' : ''} onClick={() => setDeliveryMode('both')}>
+              <Check size={20} /><span><b>Оба варианта</b><small>Личная встреча или отправка</small></span>
+            </button>
+          </div>
+        </fieldset>
 
         {error && <p className="create-error motion-pop">{error}</p>}
         <button className="publish-button pressable" type="submit" disabled={saving}>
