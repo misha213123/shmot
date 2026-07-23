@@ -22,11 +22,27 @@
     height: 100dvh;
     max-height: 100dvh;
     overflow-x: hidden;
-    overflow-y: auto;
+  }
+
+  /* Every long screen scrolls inside the application container. */
+  .app-shell:not(.feed-screen) {
+    overflow-y: auto !important;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+
+  .app-shell:not(.feed-screen) .screen-transition {
+    display: block !important;
+    width: 100%;
+    height: auto !important;
+    min-height: calc(100dvh - 96px);
+    overflow: visible !important;
+    padding-bottom: calc(92px + env(safe-area-inset-bottom));
   }
 
   /* The feed is a single app screen, not a vertically scrolling document. */
-  .app-shell:has(.swipe-stage) {
+  .app-shell.feed-screen {
     height: 100dvh !important;
     min-height: 100dvh !important;
     max-height: 100dvh !important;
@@ -34,7 +50,7 @@
     padding-bottom: calc(76px + env(safe-area-inset-bottom)) !important;
   }
 
-  .app-shell:has(.swipe-stage) .screen-transition {
+  .app-shell.feed-screen .screen-transition {
     display: grid;
     grid-template-rows: auto auto minmax(0, 1fr) auto;
     width: 100%;
@@ -44,13 +60,13 @@
     animation-duration: 260ms;
   }
 
-  .app-shell:has(.swipe-stage) .topbar,
-  .app-shell:has(.swipe-stage) .feed-tabs,
-  .app-shell:has(.swipe-stage) .swipe-actions {
+  .app-shell.feed-screen .topbar,
+  .app-shell.feed-screen .feed-tabs,
+  .app-shell.feed-screen .swipe-actions {
     flex-shrink: 0;
   }
 
-  .app-shell:has(.swipe-stage) .swipe-stage {
+  .app-shell.feed-screen .swipe-stage {
     width: 100%;
     height: 100%;
     min-height: 0;
@@ -58,7 +74,7 @@
     overflow: visible;
   }
 
-  .app-shell:has(.swipe-stage) .product-card {
+  .app-shell.feed-screen .product-card {
     width: 100%;
     height: 100% !important;
     min-height: 0 !important;
@@ -66,11 +82,11 @@
     aspect-ratio: auto;
   }
 
-  .app-shell:has(.swipe-stage) .card-stack-shadow {
+  .app-shell.feed-screen .card-stack-shadow {
     height: calc(100% - 5px);
   }
 
-  .app-shell:has(.swipe-stage) .swipe-actions {
+  .app-shell.feed-screen .swipe-actions {
     position: relative !important;
     inset: auto !important;
     z-index: 3 !important;
@@ -89,30 +105,30 @@
 }
 
 @media (max-width: 390px), (max-height: 740px) {
-  .app-shell:has(.swipe-stage) {
+  .app-shell.feed-screen {
     padding-top: max(7px, env(safe-area-inset-top)) !important;
   }
 
-  .app-shell:has(.swipe-stage) .topbar {
+  .app-shell.feed-screen .topbar {
     min-height: 42px;
   }
 
-  .app-shell:has(.swipe-stage) .feed-tabs {
+  .app-shell.feed-screen .feed-tabs {
     margin-top: 2px;
     margin-bottom: 7px;
   }
 
-  .app-shell:has(.swipe-stage) .swipe-actions {
+  .app-shell.feed-screen .swipe-actions {
     margin-top: 7px !important;
     gap: 8px;
   }
 
-  .app-shell:has(.swipe-stage) .round {
+  .app-shell.feed-screen .round {
     width: 46px;
     height: 46px;
   }
 
-  .app-shell:has(.swipe-stage) .round.primary {
+  .app-shell.feed-screen .round.primary {
     width: 54px;
     height: 54px;
   }
