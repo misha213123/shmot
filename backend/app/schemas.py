@@ -18,6 +18,16 @@ class ProfileCreate(BaseModel):
     bio: str | None = Field(default=None, max_length=500)
 
 
+class ProfileUpsert(BaseModel):
+    username: str = Field(min_length=3, max_length=40, pattern=r"^[a-zA-Z0-9._-]+$")
+    display_name: str = Field(min_length=2, max_length=100)
+    avatar_url: HttpUrl | None = None
+    phone: str | None = None
+    country_code: str = Field(default="RU", min_length=2, max_length=2)
+    city: str = Field(default="Москва", min_length=2, max_length=100)
+    bio: str | None = Field(default=None, max_length=500)
+
+
 class ProfileRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -51,7 +61,7 @@ class ProductImageRead(BaseModel):
 
 
 class ProductCreate(BaseModel):
-    seller_id: uuid.UUID
+    seller_id: uuid.UUID | None = None
     title: str = Field(min_length=3, max_length=160)
     brand: str = Field(min_length=1, max_length=100)
     category: str = Field(min_length=2, max_length=80)
@@ -107,11 +117,11 @@ class ProductListResponse(BaseModel):
 
 
 class FavoriteRequest(BaseModel):
-    user_id: uuid.UUID
+    user_id: uuid.UUID | None = None
 
 
 class SwipeRequest(BaseModel):
-    user_id: uuid.UUID
+    user_id: uuid.UUID | None = None
     action: SwipeActionType
 
 
