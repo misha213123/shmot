@@ -26,6 +26,8 @@ type ProfileDraft = {
   bio: string;
 };
 
+const PROFILE_CACHE_PREFIX = 'driply.profile.';
+
 const countries: Record<string, CountryConfig> = {
   RU: {
     name: 'Россия', phoneCode: '+7', phonePlaceholder: '999 123-45-67',
@@ -68,6 +70,35 @@ function readableError(error: unknown): string {
   return 'Произошла неизвестная ошибка';
 }
 
+function profileCacheKey(userId: string): string {
+  return `${PROFILE_CACHE_PREFIX}${userId}`;
+}
+
+function readCachedProfile(userId: string): ApiProfile | null {
+  try {
+    const value = localStorage.getItem(profileCacheKey(userId));
+    return value ? JSON.parse(value) as ApiProfile : null;
+  } catch {
+    return null;
+  }
+}
+
+function cacheProfile(userId: string, value: ApiProfile): void {
+  try {
+    localStorage.setItem(profileCacheKey(userId), JSON.stringify(value));
+  } catch {
+    // Private browsing can disable storage. The live profile still works.
+  }
+}
+
+function clearCachedProfile(userId: string): void {
+  try {
+    localStorage.removeItem(profileCacheKey(userId));
+  } catch {
+    // Ignore unavailable storage.
+  }
+}
+
 function formatLocalPhone(value: string): string {
   const digits = value.replace(/\D/g, '').slice(0, 10);
   if (digits.length <= 2) return digits;
@@ -80,7 +111,7 @@ export default function AppRoot() {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<ApiProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -124,22 +155,29 @@ export default function AppRoot() {
   useEffect(() => {
     if (!session) return;
     let active = true;
-    setProfileLoading(true);
+    const userId = session.user.id;
+    const cached = readCachedProfile(userId);
+
+    // Never block the interface on a sleeping Render instance.
+    // Returning users open the marketplace instantly from cache.
+    // New users see onboarding immediately while the API refresh runs in background.
+    setProfile(cached);
 
     api.myProfile()
       .then((value) => {
-        if (active) setProfile(value);
+        if (!active) return;
+        cacheProfile(userId, value);
+        setProfile(value);
       })
       .catch((reason) => {
         if (!active) return;
         if (reason instanceof ApiError && reason.status === 404) {
+          clearCachedProfile(userId);
           setProfile(null);
           return;
         }
-        setError(readableError(reason));
-      })
-      .finally(() => {
-        if (active) setProfileLoading(false);
+        // Keep cached UI available during temporary network or cold-start issues.
+        if (!cached) setError('Не удалось проверить профиль. Проверь интернет и повтори попытку.');
       });
 
     return () => {
@@ -177,7 +215,7 @@ export default function AppRoot() {
   const submitProfile = async (event: FormEvent) => {
     event.preventDefault();
     setError('');
-    setProfileLoading(true);
+    setProfileSaving(true);
 
     try {
       const localDigits = draft.phone.replace(/\D/g, '');
@@ -190,11 +228,12 @@ export default function AppRoot() {
         city: draft.city.trim(),
         bio: draft.bio.trim() || null,
       });
+      if (session) cacheProfile(session.user.id, saved);
       setProfile(saved);
     } catch (reason) {
       setError(readableError(reason));
     } finally {
-      setProfileLoading(false);
+      setProfileSaving(false);
     }
   };
 
@@ -238,8 +277,6 @@ export default function AppRoot() {
     );
   }
 
-  if (profileLoading) return <main className="auth-shell auth-loading"><LoaderCircle className="spin" /><b>Загружаем профиль</b></main>;
-
   if (!profile) {
     return (
       <main className="auth-shell onboarding-shell">
@@ -257,7 +294,7 @@ export default function AppRoot() {
             <label>Телефон<div className="phone-field"><select aria-label="Код страны" value={draft.phone_code} onChange={(event) => setDraft({ ...draft, phone_code: event.target.value })}>{Object.entries(countries).map(([code, country]) => <option key={code} value={country.phoneCode}>{country.phoneCode} · {code}</option>)}</select><input type="tel" inputMode="tel" autoComplete="tel-national" value={draft.phone} onChange={(event) => setDraft({ ...draft, phone: formatLocalPhone(event.target.value) })} placeholder={selectedCountry.phonePlaceholder} /></div></label>
             <label>О себе<textarea rows={3} value={draft.bio} onChange={(event) => setDraft({ ...draft, bio: event.target.value })} placeholder="Что продаёшь, как отправляешь товары" /></label>
             {error && <p className="form-alert error">{error}</p>}
-            <button className="auth-primary" type="submit" disabled={profileLoading}>{profileLoading ? <LoaderCircle className="spin" /> : <ArrowRight />}Перейти в DRIPLY</button>
+            <button className="auth-primary" type="submit" disabled={profileSaving}>{profileSaving ? <LoaderCircle className="spin" /> : <ArrowRight />}Перейти в DRIPLY</button>
           </form>
           <button className="auth-switch" onClick={() => auth.signOut()}>Выйти из аккаунта</button>
         </section>
