@@ -29,6 +29,12 @@ export type ProductInput = {
   delivery?: string; images: Array<{ url: string; position: number; is_cover: boolean }>;
 };
 export type CreateProductInput = ProductInput;
+export type FollowState = { following: boolean; followers_count: number };
+export type ApiNotification = {
+  id: string; type: string; title: string; body: string; is_read: boolean;
+  actor_id: string | null; product_id: string | null; created_at: string;
+};
+export type NotificationListResponse = { items: ApiNotification[]; unread_count: number };
 
 class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); this.name = 'ApiError'; }
@@ -48,6 +54,7 @@ async function request<T>(path: string, options?: RequestInit, protectedRoute = 
     try { const body = await response.json() as { detail?: string }; if (body.detail) message = body.detail; } catch { /* non-JSON */ }
     throw new ApiError(response.status, message);
   }
+  if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 }
 
@@ -71,6 +78,13 @@ export const api = {
   addFavorite: (productId: string) => request(`/api/v1/me/products/${productId}/favorite`, { method: 'POST', body: JSON.stringify({}) }, true),
   removeFavorite: (productId: string) => request(`/api/v1/products/${productId}/favorite`, { method: 'DELETE', body: JSON.stringify({ user_id: null }) }, true),
   swipe: (productId: string, action: SwipeAction) => request(`/api/v1/me/products/${productId}/swipe`, { method: 'POST', body: JSON.stringify({ action }) }, true),
+  following: () => request<ApiProfile[]>('/api/v1/me/following', undefined, true),
+  followingProducts: () => request<ProductListResponse>('/api/v1/me/following/products', undefined, true),
+  followState: (sellerId: string) => request<FollowState>(`/api/v1/me/following/${sellerId}`, undefined, true),
+  followSeller: (sellerId: string) => request<FollowState>(`/api/v1/me/following/${sellerId}`, { method: 'POST', body: JSON.stringify({}) }, true),
+  unfollowSeller: (sellerId: string) => request<FollowState>(`/api/v1/me/following/${sellerId}`, { method: 'DELETE' }, true),
+  notifications: () => request<NotificationListResponse>('/api/v1/me/notifications', undefined, true),
+  readAllNotifications: () => request<void>('/api/v1/me/notifications/read-all', { method: 'POST', body: JSON.stringify({}) }, true),
   recordView: (productId: string) => {
     window.dispatchEvent(new CustomEvent('driply:product-opened', { detail: { productId } }));
     return request(`/api/v1/products/${productId}/view`, { method: 'POST', body: JSON.stringify({ user_id: null }) });
