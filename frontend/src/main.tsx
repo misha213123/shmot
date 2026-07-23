@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import AdminPanel from './app/AdminPanel';
 import AppRoot from './app/AppRoot';
 import { enableChatRuntime } from './lib/chatRuntime';
+import { enableDealRuntime } from './lib/dealRuntime';
 import { enableFeedLoadingCleanup } from './lib/removeFeedLoadingText';
 import { enableInstantMarketplaceCache } from './lib/instantMarketplaceCache';
 import { enableProductEditDomSync } from './lib/productEditDomSync';
@@ -13,6 +14,7 @@ import { enableSocialRuntime } from './lib/socialRuntime';
 import './styles/global.css';
 import './styles/mobile.css';
 import './styles/profile.css';
+import './styles/deals.css';
 import './styles/reports.css';
 import './styles/reservations.css';
 import './styles/social.css';
@@ -28,6 +30,7 @@ if (!isAdminRoute) {
   enableReservationDomSync();
   enableReportRuntime();
   enableSocialRuntime();
+  enableDealRuntime();
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
