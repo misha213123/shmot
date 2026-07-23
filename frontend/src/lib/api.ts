@@ -23,11 +23,12 @@ export type ApiProfile = {
 };
 export type ProductListResponse = { items: ApiProduct[]; total: number };
 export type ProfileInput = { username: string; display_name: string; avatar_url?: string | null; phone?: string | null; country_code: string; city: string; bio?: string | null };
-export type CreateProductInput = {
+export type ProductInput = {
   seller_id?: string; title: string; brand: string; category: string; description: string; size?: string;
   color?: string; condition: string; price: number; currency: string; country_code: string; city: string;
   delivery?: string; images: Array<{ url: string; position: number; is_cover: boolean }>;
 };
+export type CreateProductInput = ProductInput;
 
 class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); this.name = 'ApiError'; }
@@ -62,14 +63,18 @@ export const api = {
   myProfile: () => request<ApiProfile>('/api/v1/me/profile', undefined, true),
   saveMyProfile: (payload: ProfileInput) => request<ApiProfile>('/api/v1/me/profile', { method: 'PUT', body: JSON.stringify(payload) }, true),
   myProducts: () => request<ProductListResponse>('/api/v1/me/products', undefined, true),
-  createMyProduct: (payload: CreateProductInput) => request<ApiProduct>('/api/v1/me/products', { method: 'POST', body: JSON.stringify(payload) }, true),
+  createMyProduct: (payload: ProductInput) => request<ApiProduct>('/api/v1/me/products', { method: 'POST', body: JSON.stringify(payload) }, true),
+  updateMyProduct: (productId: string, payload: ProductInput) => request<ApiProduct>(`/api/v1/me/products/${productId}`, { method: 'PUT', body: JSON.stringify(payload) }, true),
   updateMyProductStatus: (productId: string, status: ProductStatus) => request<ApiProduct>(`/api/v1/me/products/${productId}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }, true),
   deleteMyProduct: (productId: string) => request<{ ok: boolean; message: string }>(`/api/v1/me/products/${productId}`, { method: 'DELETE' }, true),
   favorites: (profileId: string) => request<ProductListResponse>(`/api/v1/profiles/${profileId}/favorites`),
   addFavorite: (productId: string) => request(`/api/v1/me/products/${productId}/favorite`, { method: 'POST', body: JSON.stringify({}) }, true),
   removeFavorite: (productId: string) => request(`/api/v1/products/${productId}/favorite`, { method: 'DELETE', body: JSON.stringify({ user_id: null }) }, true),
   swipe: (productId: string, action: SwipeAction) => request(`/api/v1/me/products/${productId}/swipe`, { method: 'POST', body: JSON.stringify({ action }) }, true),
-  recordView: (productId: string) => request(`/api/v1/products/${productId}/view`, { method: 'POST', body: JSON.stringify({ user_id: null }) }),
+  recordView: (productId: string) => {
+    window.dispatchEvent(new CustomEvent('driply:product-opened', { detail: { productId } }));
+    return request(`/api/v1/products/${productId}/view`, { method: 'POST', body: JSON.stringify({ user_id: null }) });
+  },
 };
 
 export { API_URL, ApiError };
