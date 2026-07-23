@@ -6,31 +6,21 @@ export type ProductStatus = 'draft' | 'active' | 'reserved' | 'sold' | 'archived
 export type SwipeAction = 'like' | 'skip';
 
 export type SellerSummary = {
-  id: string;
-  username: string;
-  display_name: string;
-  avatar_url: string | null;
-  city: string;
-  country_code: string;
-  is_verified: boolean;
-  rating: string;
+  id: string; username: string; display_name: string; avatar_url: string | null; city: string;
+  country_code: string; is_verified: boolean; rating: string;
 };
-
 export type ProductImage = { id: string; url: string; position: number; is_cover: boolean };
-
 export type ApiProduct = {
   id: string; seller_id: string; title: string; brand: string; category: string; description: string;
   size: string | null; color: string | null; condition: string; price: string; currency: string;
   country_code: string; city: string; delivery: string | null; status: ProductStatus;
   views_count: number; favorites_count: number; created_at: string; images: ProductImage[]; seller: SellerSummary;
 };
-
 export type ApiProfile = {
   id: string; email: string | null; username: string; display_name: string; avatar_url: string | null;
   phone: string | null; country_code: string; city: string; bio: string | null;
   is_verified: boolean; rating: string; created_at: string;
 };
-
 export type ProductListResponse = { items: ApiProduct[]; total: number };
 export type ProfileInput = { username: string; display_name: string; avatar_url?: string | null; phone?: string | null; country_code: string; city: string; bio?: string | null };
 export type CreateProductInput = {
@@ -73,6 +63,8 @@ export const api = {
   saveMyProfile: (payload: ProfileInput) => request<ApiProfile>('/api/v1/me/profile', { method: 'PUT', body: JSON.stringify(payload) }, true),
   myProducts: () => request<ProductListResponse>('/api/v1/me/products', undefined, true),
   createMyProduct: (payload: CreateProductInput) => request<ApiProduct>('/api/v1/me/products', { method: 'POST', body: JSON.stringify(payload) }, true),
+  updateMyProductStatus: (productId: string, status: ProductStatus) => request<ApiProduct>(`/api/v1/me/products/${productId}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }, true),
+  deleteMyProduct: (productId: string) => request<{ ok: boolean; message: string }>(`/api/v1/me/products/${productId}`, { method: 'DELETE' }, true),
   favorites: (profileId: string) => request<ProductListResponse>(`/api/v1/profiles/${profileId}/favorites`),
   addFavorite: (productId: string) => request(`/api/v1/me/products/${productId}/favorite`, { method: 'POST', body: JSON.stringify({}) }, true),
   removeFavorite: (productId: string) => request(`/api/v1/products/${productId}/favorite`, { method: 'DELETE', body: JSON.stringify({ user_id: null }) }, true),
