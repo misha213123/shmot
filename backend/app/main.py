@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from .authenticated import router as authenticated_router
 from .config import get_settings
 from .database import create_database_tables
 from .marketplace import router as marketplace_router
@@ -18,7 +19,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(
     title="DRIPLY API",
-    version="0.2.0",
+    version="0.3.0",
     description="API маркетплейса одежды DRIPLY",
     lifespan=lifespan,
 )
@@ -32,11 +33,12 @@ app.add_middleware(
 )
 
 app.include_router(marketplace_router)
+app.include_router(authenticated_router)
 
 
 @app.get("/")
 async def root() -> dict[str, str]:
-    return {"name": "DRIPLY API", "status": "ok", "version": "0.2.0"}
+    return {"name": "DRIPLY API", "status": "ok", "version": "0.3.0"}
 
 
 @app.get("/health")
