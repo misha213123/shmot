@@ -1,20 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Bell, ChevronLeft, Heart, Home, MessageCircle, Phone, Plus, Search, Settings, SlidersHorizontal, User, X } from 'lucide-react';
+import { Archive, Bell, CheckCircle2, ChevronLeft, Heart, Home, MessageCircle, Phone, Plus, Search, Settings, SlidersHorizontal, Trash2, User, X } from 'lucide-react';
 
 import CreateProductScreen from './CreateProductScreen';
-import { api, type ApiProduct, type ApiProfile } from '../lib/api';
+import { api, type ApiProduct, type ApiProfile, type ProductStatus } from '../lib/api';
 import '../styles/gestures.css';
 import '../styles/stability.css';
 import '../styles/gallery.css';
 import '../styles/seller-profile.css';
+import '../styles/product-management.css';
 
 type Screen = 'feed' | 'explore' | 'create' | 'likes' | 'profile' | 'seller' | 'product' | 'messages' | 'filters';
+type ProfileTab = 'active' | 'sold' | 'archived';
 type Props = { profile: ApiProfile };
 
-const countryNames: Record<string, string> = {
-  RU: 'Россия', BY: 'Беларусь', KZ: 'Казахстан', UA: 'Украина', AM: 'Армения', GE: 'Грузия',
-};
+const countryNames: Record<string, string> = { RU: 'Россия', BY: 'Беларусь', KZ: 'Казахстан', UA: 'Украина', AM: 'Армения', GE: 'Грузия' };
 const currencySymbols: Record<string, string> = { RUB: '₽', BYN: 'Br', KZT: '₸', UAH: '₴', AMD: '֏', GEL: '₾' };
+const statusLabels: Record<ProductStatus, string> = { draft: 'Черновик', active: 'Активно', reserved: 'Забронировано', sold: 'Продано', archived: 'Архив' };
 
 function formatPrice(product: ApiProduct) {
   const value = Number(product.price);
@@ -27,6 +28,7 @@ function initials(name: string) { return (name || 'U').trim().slice(0, 1).toUppe
 
 export default function MarketplaceApp({ profile }: Props) {
   const [screen, setScreen] = useState<Screen>('feed');
+  const [profileTab, setProfileTab] = useState<ProfileTab>('active');
   const [feedProducts, setFeedProducts] = useState<ApiProduct[]>([]);
   const [myProducts, setMyProducts] = useState<ApiProduct[]>([]);
   const [favoriteProducts, setFavoriteProducts] = useState<ApiProduct[]>([]);
@@ -41,6 +43,7 @@ export default function MarketplaceApp({ profile }: Props) {
   const [query, setQuery] = useState('');
   const [notice, setNotice] = useState('');
   const [loadingProducts, setLoadingProducts] = useState(true);
+  const [managingProduct, setManagingProduct] = useState(false);
   const [cardMotion, setCardMotion] = useState<'left' | 'right' | 'back' | null>(null);
   const noticeTimer = useRef<number | null>(null);
 
@@ -69,6 +72,10 @@ export default function MarketplaceApp({ profile }: Props) {
   const filtered = useMemo(() => feedProducts.filter((item) =>
     `${item.brand} ${item.title} ${item.category} ${item.city}`.toLowerCase().includes(query.toLowerCase())), [feedProducts, query]);
   const ownLocation = [profile.city, countryNames[profile.country_code] || profile.country_code].filter(Boolean).join(', ');
+  const visibleMyProducts = useMemo(() => myProducts.filter((item) => {
+    if (profileTab === 'active') return ['active', 'reserved', 'draft'].includes(item.status);
+    return item.status === profileTab;
+  }), [myProducts, profileTab]);
 
   const navigate = (next: Screen) => {
     setScreen(next); setPhotoIndex(0);
@@ -87,12 +94,7 @@ export default function MarketplaceApp({ profile }: Props) {
   const openSeller = async (product: ApiProduct) => {
     if (product.seller_id === profile.id) { navigate('profile'); return; }
     setSellerLoading(true);
-    setSelectedSeller({
-      id: product.seller.id, email: null, username: product.seller.username,
-      display_name: product.seller.display_name, avatar_url: product.seller.avatar_url,
-      phone: null, country_code: product.seller.country_code, city: product.seller.city,
-      bio: null, is_verified: product.seller.is_verified, rating: product.seller.rating, created_at: '',
-    });
+    setSelectedSeller({ id: product.seller.id, email: null, username: product.seller.username, display_name: product.seller.display_name, avatar_url: product.seller.avatar_url, phone: null, country_code: product.seller.country_code, city: product.seller.city, bio: null, is_verified: product.seller.is_verified, rating: product.seller.rating, created_at: '' });
     setSellerProducts(feedProducts.filter((item) => item.seller_id === product.seller_id));
     navigate('seller');
     try {
@@ -100,15 +102,44 @@ export default function MarketplaceApp({ profile }: Props) {
       setSelectedSeller(fullProfile);
       const products = await api.products({ seller_id: product.seller_id, status: 'active' });
       setSellerProducts(products.items);
-    } catch {
-      showNotice('Показываем доступные данные продавца');
-    } finally { setSellerLoading(false); }
+    } catch { showNotice('Показываем доступные данные продавца'); }
+    finally { setSellerLoading(false); }
   };
 
   const contactSeller = (seller: ApiProfile | null) => {
     if (!seller?.phone) { showNotice('Продавец пока не указал контакт'); return; }
     if (seller.phone.startsWith('@')) window.open(`https://t.me/${seller.phone.slice(1)}`, '_blank', 'noopener,noreferrer');
     else window.location.href = `tel:${seller.phone.replace(/\s/g, '')}`;
+  };
+
+  const updateOwnStatus = async (product: ApiProduct, status: ProductStatus) => {
+    if (managingProduct) return;
+    setManagingProduct(true);
+    try {
+      const updated = await api.updateMyProductStatus(product.id, status);
+      setMyProducts((items) => items.map((item) => item.id === updated.id ? updated : item));
+      setFeedProducts((items) => status === 'active'
+        ? (items.some((item) => item.id === updated.id) ? items.map((item) => item.id === updated.id ? updated : item) : [updated, ...items])
+        : items.filter((item) => item.id !== updated.id));
+      setSelectedId(updated.id);
+      showNotice(`Статус: ${statusLabels[status]}`);
+    } catch { showNotice('Не удалось изменить статус'); }
+    finally { setManagingProduct(false); }
+  };
+
+  const deleteOwnProduct = async (product: ApiProduct) => {
+    if (managingProduct || !window.confirm('Удалить объявление навсегда? Это действие нельзя отменить.')) return;
+    setManagingProduct(true);
+    try {
+      await api.deleteMyProduct(product.id);
+      setMyProducts((items) => items.filter((item) => item.id !== product.id));
+      setFeedProducts((items) => items.filter((item) => item.id !== product.id));
+      setFavoriteProducts((items) => items.filter((item) => item.id !== product.id));
+      setSelectedId('');
+      navigate('profile');
+      showNotice('Объявление удалено');
+    } catch { showNotice('Не удалось удалить объявление'); }
+    finally { setManagingProduct(false); }
   };
 
   const moveFeed = (direction: 'next' | 'previous', action?: 'skip' | 'like') => {
@@ -124,10 +155,7 @@ export default function MarketplaceApp({ profile }: Props) {
     setHistory((items) => [...items.slice(-19), feedIndex]);
     setCardMotion(action === 'like' ? 'right' : 'left');
     if (action) api.swipe(product.id, action).catch(() => undefined);
-    window.setTimeout(() => {
-      setFeedIndex((current) => feedProducts.length > 1 ? (current + 1) % feedProducts.length : current);
-      setSelectedId(''); setPhotoIndex(0); setCardMotion(null);
-    }, 260);
+    window.setTimeout(() => { setFeedIndex((current) => feedProducts.length > 1 ? (current + 1) % feedProducts.length : current); setSelectedId(''); setPhotoIndex(0); setCardMotion(null); }, 260);
   };
 
   const toggleLike = async (product: ApiProduct) => {
@@ -141,18 +169,15 @@ export default function MarketplaceApp({ profile }: Props) {
 
   const header = (title = 'DRIPLY', back = false, onBack?: () => void) => (
     <header className="topbar motion-header">
-      <button className="icon-button pressable" onClick={() => back ? (onBack ? onBack() : navigate('feed')) : showNotice('Уведомлений пока нет')}>
-        {back ? <ChevronLeft /> : <Bell size={21} />}
-      </button>
+      <button className="icon-button pressable" onClick={() => back ? (onBack ? onBack() : navigate('feed')) : showNotice('Уведомлений пока нет')}>{back ? <ChevronLeft /> : <Bell size={21} />}</button>
       <div className="brand"><strong>{title}</strong>{title === 'DRIPLY' && <span>ЛИСТАЙ. НАХОДИ. НОСИ.</span>}</div>
-      <button className="icon-button pressable" onClick={() => title === 'Профиль' ? showNotice('Редактирование профиля — следующий этап') : navigate('filters')}>
-        {title === 'Профиль' ? <Settings size={21} /> : <SlidersHorizontal size={21} />}
-      </button>
+      <button className="icon-button pressable" onClick={() => title === 'Профиль' ? showNotice('Редактирование профиля будет следующим экраном') : navigate('filters')}>{title === 'Профиль' ? <Settings size={21} /> : <SlidersHorizontal size={21} />}</button>
     </header>
   );
 
-  const productGrid = (items: ApiProduct[]) => <div className="product-grid">{items.map((item) =>
-    <button key={item.id} className="grid-item pressable-card motion-pop" onClick={() => openProduct(item)}>
+  const productGrid = (items: ApiProduct[], own = false) => <div className="product-grid">{items.map((item) =>
+    <button key={item.id} className={`grid-item pressable-card motion-pop ${own ? 'own-grid-item' : ''}`} onClick={() => openProduct(item)}>
+      <span className={`product-status status-${item.status}`}>{statusLabels[item.status]}</span>
       <img src={cover(item)} alt={item.title} /><b>{formatPrice(item)}</b><span>{item.title}</span>
     </button>)}</div>;
 
@@ -180,22 +205,21 @@ export default function MarketplaceApp({ profile }: Props) {
     const product = selectedProduct;
     if (!product) return <>{header('Товар', true)}<div className="empty-state"><b>Товар не найден</b></div></>;
     const images = orderedImages(product);
+    const isOwn = product.seller_id === profile.id;
     return <>{header('Товар', true)}<div className="detail-image-wrap detail-gallery">{images.length > 0 && <img className="detail-image" src={images[photoIndex % images.length]?.url} alt={product.title} />}{images.length > 1 && <div className="photo-tap-zones"><button onClick={() => setPhotoIndex((v) => (v - 1 + images.length) % images.length)} /><button onClick={() => setPhotoIndex((v) => (v + 1) % images.length)} /></div>}<span className="photo-counter">{Math.min(photoIndex + 1, images.length)} / {images.length}</span></div>
-      <section className="detail-card motion-pop"><div className="detail-title"><div><b>{product.brand}</b><h1>{product.title}</h1></div><button className="icon-button pressable" onClick={() => toggleLike(product)}><Heart fill={liked.includes(product.id) ? 'currentColor' : 'none'} /></button></div><strong className="detail-price">{formatPrice(product)}</strong>
+      <section className="detail-card motion-pop"><div className="detail-title"><div><b>{product.brand}</b><h1>{product.title}</h1></div>{!isOwn && <button className="icon-button pressable" onClick={() => toggleLike(product)}><Heart fill={liked.includes(product.id) ? 'currentColor' : 'none'} /></button>}</div><strong className="detail-price">{formatPrice(product)}</strong>
         <div className="spec-grid"><span><small>Размер</small>{product.size || '—'}</span><span><small>Состояние</small>{product.condition}</span><span><small>Цвет</small>{product.color || '—'}</span><span><small>Город</small>{product.city}</span></div>
-        <div className="detail-description"><h3>Описание</h3><p>{product.description}</p>{product.delivery && <><h3>Доставка</h3><p>{product.delivery}</p></>}</div><h3>Продавец</h3>
-        <div className="detail-seller"><div className="avatar">{initials(product.seller.display_name || product.seller.username)}</div><div><b>{product.seller.username}{product.seller.is_verified ? ' ✓' : ''}</b><small>{product.seller.city} · ★ {product.seller.rating}</small></div><button onClick={() => openSeller(product)}>Профиль</button></div>
-        <button className="primary-button" onClick={() => product.seller_id === profile.id ? showNotice('Это твоё объявление') : openSeller(product)}><MessageCircle size={19} /> Связаться с продавцом</button>
+        <div className="detail-description"><h3>Описание</h3><p>{product.description}</p>{product.delivery && <><h3>Доставка</h3><p>{product.delivery}</p></>}</div>
+        {isOwn ? <section className="own-product-management motion-pop"><div><h3>Управление объявлением</h3><span className={`management-current status-${product.status}`}>{statusLabels[product.status]}</span></div><div className="management-actions"><button disabled={managingProduct || product.status === 'active'} onClick={() => updateOwnStatus(product, 'active')}><CheckCircle2 /> Активировать</button><button disabled={managingProduct || product.status === 'sold'} onClick={() => updateOwnStatus(product, 'sold')}><CheckCircle2 /> Продано</button><button disabled={managingProduct || product.status === 'archived'} onClick={() => updateOwnStatus(product, 'archived')}><Archive /> В архив</button><button className="delete-product-button" disabled={managingProduct} onClick={() => deleteOwnProduct(product)}><Trash2 /> Удалить</button></div></section> : <><h3>Продавец</h3><div className="detail-seller"><div className="avatar">{initials(product.seller.display_name || product.seller.username)}</div><div><b>{product.seller.username}{product.seller.is_verified ? ' ✓' : ''}</b><small>{product.seller.city} · ★ {product.seller.rating}</small></div><button onClick={() => openSeller(product)}>Профиль</button></div><button className="primary-button" onClick={() => openSeller(product)}><MessageCircle size={19} /> Связаться с продавцом</button></>}
       </section></>;
   };
 
-  const renderProfile = () => <>{header('Профиль', true)}<section className="profile-head motion-header"><div className="avatar large">{initials(profile.display_name || profile.username)}</div><h2>{profile.username}{profile.is_verified ? ' ✓' : ''}</h2><p>{ownLocation}</p>{profile.bio && <small>{profile.bio}</small>}</section>{loadingProducts ? <div className="profile-products-loading">Обновляем объявления…</div> : myProducts.length ? productGrid(myProducts) : <section className="empty-profile-products motion-pop"><div>＋</div><h3>У тебя пока нет объявлений</h3><p>Добавь первую вещь — она появится здесь и в общей ленте.</p><button className="primary-button" onClick={() => navigate('create')}>Добавить товар</button></section>}</>;
+  const renderProfile = () => <>{header('Профиль', true)}<section className="profile-head motion-header"><div className="avatar large">{initials(profile.display_name || profile.username)}</div><h2>{profile.username}{profile.is_verified ? ' ✓' : ''}</h2><p>{ownLocation}</p>{profile.bio && <small>{profile.bio}</small>}</section><nav className="profile-product-tabs motion-tabs"><button className={profileTab === 'active' ? 'active' : ''} onClick={() => setProfileTab('active')}>Активные</button><button className={profileTab === 'sold' ? 'active' : ''} onClick={() => setProfileTab('sold')}>Проданные</button><button className={profileTab === 'archived' ? 'active' : ''} onClick={() => setProfileTab('archived')}>Архив</button></nav>{loadingProducts ? <div className="profile-products-loading">Обновляем объявления…</div> : visibleMyProducts.length ? productGrid(visibleMyProducts, true) : <section className="empty-profile-products motion-pop"><div>＋</div><h3>Здесь пока пусто</h3><p>{profileTab === 'active' ? 'Добавь первую вещь — она появится здесь и в общей ленте.' : 'Товары с этим статусом появятся здесь.'}</p>{profileTab === 'active' && <button className="primary-button" onClick={() => navigate('create')}>Добавить товар</button>}</section>}</>;
 
   const renderSeller = () => {
     if (!selectedSeller) return <>{header('Продавец', true, () => navigate('product'))}<div className="empty-state"><b>Профиль не найден</b></div></>;
     const sellerLocation = [selectedSeller.city, countryNames[selectedSeller.country_code] || selectedSeller.country_code].filter(Boolean).join(', ');
-    return <>{header('Продавец', true, () => navigate('product'))}<section className="seller-profile-hero motion-pop"><div className="seller-avatar-wrap">{selectedSeller.avatar_url ? <img src={selectedSeller.avatar_url} alt={selectedSeller.display_name} /> : <div className="avatar seller-avatar">{initials(selectedSeller.display_name || selectedSeller.username)}</div>}{selectedSeller.is_verified && <span>✓</span>}</div><h1>{selectedSeller.display_name}</h1><b>@{selectedSeller.username}</b><p>{sellerLocation}</p>{selectedSeller.bio && <small>{selectedSeller.bio}</small>}<div className="seller-stats"><span><strong>{sellerProducts.length}</strong>Объявлений</span><span><strong>{selectedSeller.rating}</strong>Рейтинг</span></div><button className="primary-button seller-contact" onClick={() => contactSeller(selectedSeller)}><Phone size={18} /> Связаться</button></section>
-      <div className="seller-section-title"><h3>Активные объявления</h3>{sellerLoading && <span>Обновляем…</span>}</div>{sellerProducts.length ? productGrid(sellerProducts) : <div className="empty-state motion-pop"><b>Активных товаров пока нет</b></div>}</>;
+    return <>{header('Продавец', true, () => navigate('product'))}<section className="seller-profile-hero motion-pop"><div className="seller-avatar-wrap">{selectedSeller.avatar_url ? <img src={selectedSeller.avatar_url} alt={selectedSeller.display_name} /> : <div className="avatar seller-avatar">{initials(selectedSeller.display_name || selectedSeller.username)}</div>}{selectedSeller.is_verified && <span>✓</span>}</div><h1>{selectedSeller.display_name}</h1><b>@{selectedSeller.username}</b><p>{sellerLocation}</p>{selectedSeller.bio && <small>{selectedSeller.bio}</small>}<div className="seller-stats"><span><strong>{sellerProducts.length}</strong>Объявлений</span><span><strong>{selectedSeller.rating}</strong>Рейтинг</span></div><button className="primary-button seller-contact" onClick={() => contactSeller(selectedSeller)}><Phone size={18} /> Связаться</button></section><div className="seller-section-title"><h3>Активные объявления</h3>{sellerLoading && <span>Обновляем…</span>}</div>{sellerProducts.length ? productGrid(sellerProducts) : <div className="empty-state motion-pop"><b>Активных товаров пока нет</b></div>}</>;
   };
 
   const renderLikes = () => <>{header('Избранное', true)}{favoriteProducts.length ? productGrid(favoriteProducts) : <div className="empty-state motion-pop"><Heart /><b>Избранное пока пустое</b><p>Нажимай сердце или свайпай карточки вправо.</p></div>}</>;
