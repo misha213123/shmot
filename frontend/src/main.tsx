@@ -10,6 +10,7 @@ import { enableProductEditDomSync } from './lib/productEditDomSync';
 import { enableProfileDomSync } from './lib/profileDomSync';
 import { enableReportRuntime } from './lib/reportRuntime';
 import { enableReservationDomSync } from './lib/reservationDomSync';
+import { enableReviewRuntime } from './lib/reviewRuntime';
 import { enableSocialRuntime } from './lib/socialRuntime';
 import './styles/global.css';
 import './styles/mobile.css';
@@ -17,6 +18,7 @@ import './styles/profile.css';
 import './styles/deals.css';
 import './styles/reports.css';
 import './styles/reservations.css';
+import './styles/reviews.css';
 import './styles/social.css';
 
 const isAdminRoute = window.location.pathname === '/admin';
@@ -31,6 +33,7 @@ if (!isAdminRoute) {
   enableReportRuntime();
   enableSocialRuntime();
   enableDealRuntime();
+  enableReviewRuntime();
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
