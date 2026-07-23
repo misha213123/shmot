@@ -77,6 +77,10 @@ class ProductCreate(BaseModel):
     images: list[ProductImageCreate] = Field(min_length=1, max_length=10)
 
 
+class ProductStatusUpdate(BaseModel):
+    status: ProductStatus
+
+
 class SellerSummary(BaseModel):
     id: uuid.UUID
     username: str
