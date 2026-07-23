@@ -1,32 +1,119 @@
 /* Stable mobile interaction layer */
-.draggable-card{touch-action:pan-y;user-select:none;-webkit-user-select:none}
-.draggable-card.is-dragging{cursor:grabbing}
-
-@media(max-width:600px){
-  .app-shell:has(.swipe-stage) .swipe-actions{
-    position:relative!important;
-    bottom:auto!important;
-    z-index:3!important;
-    width:100%!important;
-    margin:14px 0 8px!important;
-    padding:0!important;
-    background:transparent!important;
-    backdrop-filter:none!important;
-    -webkit-backdrop-filter:none!important;
-  }
-  .product-card{
-    height:clamp(360px,calc(100dvh - 335px),540px)!important;
-    min-height:360px!important;
-    max-height:none!important;
-  }
-  .screen-transition{animation-duration:260ms}
-  .search-box input{font-size:16px}
+.draggable-card {
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-@media(max-height:740px) and (max-width:600px){
-  .product-card{
-    height:clamp(330px,calc(100dvh - 310px),440px)!important;
-    min-height:330px!important;
+.draggable-card.is-dragging {
+  cursor: grabbing;
+}
+
+@media (max-width: 600px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
   }
-  .swipe-actions{margin-top:10px!important}
+
+  .app-shell {
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  /* The feed is a single app screen, not a vertically scrolling document. */
+  .app-shell:has(.swipe-stage) {
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow: hidden !important;
+    padding-bottom: calc(76px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .app-shell:has(.swipe-stage) .screen-transition {
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    animation-duration: 260ms;
+  }
+
+  .app-shell:has(.swipe-stage) .topbar,
+  .app-shell:has(.swipe-stage) .feed-tabs,
+  .app-shell:has(.swipe-stage) .swipe-actions {
+    flex-shrink: 0;
+  }
+
+  .app-shell:has(.swipe-stage) .swipe-stage {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    margin: 0;
+    overflow: visible;
+  }
+
+  .app-shell:has(.swipe-stage) .product-card {
+    width: 100%;
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    aspect-ratio: auto;
+  }
+
+  .app-shell:has(.swipe-stage) .card-stack-shadow {
+    height: calc(100% - 5px);
+  }
+
+  .app-shell:has(.swipe-stage) .swipe-actions {
+    position: relative !important;
+    inset: auto !important;
+    z-index: 3 !important;
+    width: 100% !important;
+    margin: 10px 0 0 !important;
+    padding: 0 0 2px !important;
+    gap: 10px;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .search-box input {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 390px), (max-height: 740px) {
+  .app-shell:has(.swipe-stage) {
+    padding-top: max(7px, env(safe-area-inset-top)) !important;
+  }
+
+  .app-shell:has(.swipe-stage) .topbar {
+    min-height: 42px;
+  }
+
+  .app-shell:has(.swipe-stage) .feed-tabs {
+    margin-top: 2px;
+    margin-bottom: 7px;
+  }
+
+  .app-shell:has(.swipe-stage) .swipe-actions {
+    margin-top: 7px !important;
+    gap: 8px;
+  }
+
+  .app-shell:has(.swipe-stage) .round {
+    width: 46px;
+    height: 46px;
+  }
+
+  .app-shell:has(.swipe-stage) .round.primary {
+    width: 54px;
+    height: 54px;
+  }
 }
