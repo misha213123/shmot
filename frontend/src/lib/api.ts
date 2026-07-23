@@ -85,9 +85,13 @@ export const api = {
   unfollowSeller: (sellerId: string) => request<FollowState>(`/api/v1/me/following/${sellerId}`, { method: 'DELETE' }, true),
   notifications: () => request<NotificationListResponse>('/api/v1/me/notifications', undefined, true),
   readAllNotifications: () => request<void>('/api/v1/me/notifications/read-all', { method: 'POST', body: JSON.stringify({}) }, true),
+  recommendations: () => request<ProductListResponse>('/api/v1/me/recommendations', undefined, true),
+  recentlyViewed: () => request<ProductListResponse>('/api/v1/me/recently-viewed', undefined, true),
+  similarProducts: (productId: string) => request<ProductListResponse>(`/api/v1/products/${productId}/similar`),
+  trending: () => request<ProductListResponse>('/api/v1/trending'),
   recordView: (productId: string) => {
     window.dispatchEvent(new CustomEvent('driply:product-opened', { detail: { productId } }));
-    return request(`/api/v1/products/${productId}/view`, { method: 'POST', body: JSON.stringify({ user_id: null }) });
+    return request(`/api/v1/me/products/${productId}/view`, { method: 'POST', body: JSON.stringify({}) }, true);
   },
 };
 
