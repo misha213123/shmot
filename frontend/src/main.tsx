@@ -5,14 +5,17 @@ import { enableChatRuntime } from './lib/chatRuntime';
 import { enableInstantMarketplaceCache } from './lib/instantMarketplaceCache';
 import { enableProductEditDomSync } from './lib/productEditDomSync';
 import { enableProfileDomSync } from './lib/profileDomSync';
+import { enableReservationDomSync } from './lib/reservationDomSync';
 import './styles/global.css';
 import './styles/mobile.css';
 import './styles/profile.css';
+import './styles/reservations.css';
 
 enableInstantMarketplaceCache();
 enableProfileDomSync();
 enableProductEditDomSync();
 enableChatRuntime();
+enableReservationDomSync();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
