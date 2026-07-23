@@ -1,6 +1,5 @@
--- Run once in Supabase SQL Editor.
--- Product images are public to read, but only authenticated users can upload
--- into their own top-level folder: <auth.uid()>/<listing-id>/<filename>.
+-- DRIPLY: one-time Supabase Storage setup
+-- Run this file in Supabase Dashboard -> SQL Editor.
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
@@ -15,10 +14,12 @@ on conflict (id) do update set
   file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
 
+drop policy if exists "Public can view product images" on storage.objects;
 create policy "Public can view product images"
 on storage.objects for select
 using (bucket_id = 'product-images');
 
+drop policy if exists "Users can upload their product images" on storage.objects;
 create policy "Users can upload their product images"
 on storage.objects for insert
 to authenticated
@@ -27,6 +28,7 @@ with check (
   and (storage.foldername(name))[1] = auth.uid()::text
 );
 
+drop policy if exists "Users can update their product images" on storage.objects;
 create policy "Users can update their product images"
 on storage.objects for update
 to authenticated
@@ -39,6 +41,7 @@ with check (
   and (storage.foldername(name))[1] = auth.uid()::text
 );
 
+drop policy if exists "Users can delete their product images" on storage.objects;
 create policy "Users can delete their product images"
 on storage.objects for delete
 to authenticated
