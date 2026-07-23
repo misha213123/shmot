@@ -12,6 +12,7 @@ from .marketplace import router as marketplace_router
 from .product_edit import router as product_edit_router
 from .reports import router as reports_router
 from .reservations import router as reservations_router
+from .social import router as social_router
 
 settings = get_settings()
 
@@ -24,7 +25,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(
     title="DRIPLY API",
-    version="0.8.0",
+    version="0.9.0",
     description="API маркетплейса одежды DRIPLY",
     lifespan=lifespan,
 )
@@ -44,11 +45,12 @@ app.include_router(chats_router)
 app.include_router(reservations_router)
 app.include_router(admin_router)
 app.include_router(reports_router)
+app.include_router(social_router)
 
 
 @app.get("/")
 async def root() -> dict[str, str]:
-    return {"name": "DRIPLY API", "status": "ok", "version": "0.8.0"}
+    return {"name": "DRIPLY API", "status": "ok", "version": "0.9.0"}
 
 
 @app.get("/health")
