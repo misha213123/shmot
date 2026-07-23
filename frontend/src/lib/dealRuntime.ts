@@ -65,6 +65,36 @@ function offerModal(productId: string) {
   window.setTimeout(() => input.focus(), 180);
 }
 
+function reviewModal(deal: Deal) {
+  closePanel();
+  const overlay = document.createElement('div'); overlay.className = 'deal-overlay';
+  overlay.innerHTML = `<section class="deal-sheet review-sheet"><button class="deal-close" aria-label="Закрыть">×</button><span class="deal-kicker">ОТЗЫВ О ПРОДАВЦЕ</span><h2>${deal.product_title}</h2><p>Оцени покупку у @${deal.seller_username}</p><div class="review-stars">${[1,2,3,4,5].map((value) => `<button data-rating="${value}" aria-label="${value} звёзд">★</button>`).join('')}</div><textarea maxlength="1000" placeholder="Расскажи, как прошла сделка"></textarea><button class="deal-primary review-submit" disabled>Опубликовать отзыв</button><small class="deal-error"></small></section>`;
+  document.body.append(overlay);
+  let rating = 0;
+  const submit = overlay.querySelector('.review-submit') as HTMLButtonElement;
+  const error = overlay.querySelector('.deal-error') as HTMLElement;
+  const textarea = overlay.querySelector('textarea') as HTMLTextAreaElement;
+  overlay.querySelector('.deal-close')?.addEventListener('click', closePanel);
+  overlay.querySelectorAll<HTMLButtonElement>('[data-rating]').forEach((button) => {
+    button.onclick = () => {
+      rating = Number(button.dataset.rating);
+      overlay.querySelectorAll<HTMLButtonElement>('[data-rating]').forEach((star) => star.classList.toggle('active', Number(star.dataset.rating) <= rating));
+      submit.disabled = false;
+    };
+  });
+  submit.onclick = async () => {
+    if (!rating) return;
+    submit.disabled = true;
+    try {
+      await request('/api/v1/me/reviews', { method: 'POST', body: JSON.stringify({ deal_id: deal.id, rating, comment: textarea.value.trim() || null }) });
+      closePanel(); showToast('Спасибо! Отзыв опубликован');
+    } catch (reason) {
+      error.textContent = reason instanceof Error ? reason.message : 'Не удалось опубликовать отзыв';
+      submit.disabled = false;
+    }
+  };
+}
+
 async function actOffer(offer: Offer, action: 'accept' | 'reject' | 'counter') {
   if (action === 'counter') {
     const raw = window.prompt('Введите встречную цену');
@@ -111,7 +141,8 @@ async function openDealCenter() {
     const dealCards = deals.map((deal) => {
       const action = nextDealAction(deal);
       const isBuyer = deal.buyer_id === currentUserId;
-      return `<article class="deal-card deal-active"><div class="deal-card-main">${deal.product_image ? `<img src="${deal.product_image}" alt="" />` : ''}<div><span>${isBuyer ? 'Покупка' : 'Продажа'}</span><b>${deal.product_title}</b><strong>${money(deal.amount, deal.currency)}</strong><small>${dealLabels[deal.status]} · @${isBuyer ? deal.seller_username : deal.buyer_username}</small></div></div><div class="deal-timeline"><i class="done"></i><i class="${['paid','shipped','received','completed'].includes(deal.status) ? 'done' : ''}"></i><i class="${['shipped','received','completed'].includes(deal.status) ? 'done' : ''}"></i><i class="${['received','completed'].includes(deal.status) ? 'done' : ''}"></i><i class="${deal.status === 'completed' ? 'done' : ''}"></i></div>${action ? `<button class="deal-primary deal-next" data-deal="${deal.id}" data-status="${action.status}">${action.label}</button>` : ''}${!['completed','cancelled','shipped','received'].includes(deal.status) ? `<button class="deal-cancel" data-deal="${deal.id}" data-status="cancelled">Отменить сделку</button>` : ''}</article>`;
+      const reviewButton = deal.status === 'completed' && isBuyer ? `<button class="deal-review" data-review-deal="${deal.id}">★ Оставить отзыв</button>` : '';
+      return `<article class="deal-card deal-active"><div class="deal-card-main">${deal.product_image ? `<img src="${deal.product_image}" alt="" />` : ''}<div><span>${isBuyer ? 'Покупка' : 'Продажа'}</span><b>${deal.product_title}</b><strong>${money(deal.amount, deal.currency)}</strong><small>${dealLabels[deal.status]} · @${isBuyer ? deal.seller_username : deal.buyer_username}</small></div></div><div class="deal-timeline"><i class="done"></i><i class="${['paid','shipped','received','completed'].includes(deal.status) ? 'done' : ''}"></i><i class="${['shipped','received','completed'].includes(deal.status) ? 'done' : ''}"></i><i class="${['received','completed'].includes(deal.status) ? 'done' : ''}"></i><i class="${deal.status === 'completed' ? 'done' : ''}"></i></div>${action ? `<button class="deal-primary deal-next" data-deal="${deal.id}" data-status="${action.status}">${action.label}</button>` : ''}${reviewButton}${!['completed','cancelled','shipped','received'].includes(deal.status) ? `<button class="deal-cancel" data-deal="${deal.id}" data-status="cancelled">Отменить сделку</button>` : ''}</article>`;
     }).join('');
     center.querySelector('.deal-loading')?.remove();
     center.insertAdjacentHTML('beforeend', `<div class="deal-tabs-title">Активные сделки</div>${dealCards || '<p class="deal-empty">Активных сделок пока нет</p>'}<div class="deal-tabs-title">Предложения цены</div>${offerCards || '<p class="deal-empty">Предложений пока нет</p>'}`);
@@ -122,6 +153,9 @@ async function openDealCenter() {
     center.querySelectorAll<HTMLElement>('[data-deal]').forEach((button) => button.onclick = async () => {
       const deal = deals.find((item) => item.id === button.dataset.deal); if (!deal) return;
       try { await updateDeal(deal, button.dataset.status as Deal['status']); } catch (reason) { showToast(reason instanceof Error ? reason.message : 'Ошибка'); }
+    });
+    center.querySelectorAll<HTMLElement>('[data-review-deal]').forEach((button) => button.onclick = () => {
+      const deal = deals.find((item) => item.id === button.dataset.reviewDeal); if (deal) reviewModal(deal);
     });
   } catch (reason) {
     const loading = overlay.querySelector('.deal-loading'); if (loading) loading.textContent = reason instanceof Error ? reason.message : 'Не удалось загрузить сделки';
