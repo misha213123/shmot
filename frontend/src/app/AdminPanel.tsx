@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Flag, RefreshCw, Shield, Trash2, Users } from 'lucide-react';
+import { Flag, RefreshCw, Shield, Star, Trash2, Users } from 'lucide-react';
 
 import { API_URL } from '../lib/api';
 import { auth } from '../lib/auth';
@@ -10,8 +10,9 @@ type Stats = { users: number; products: number; active_products: number; sold_pr
 type AdminUser = { id: string; email: string | null; username: string; display_name: string; country_code: string; city: string; is_verified: boolean };
 type AdminProduct = { id: string; title: string; brand: string; status: string; price: string; currency: string; seller_id: string; seller_username: string };
 type AdminReport = { id: string; product_id: string; product_title: string; seller_username: string; reporter_username: string; reason: string; details: string | null; status: string; moderator_note: string | null; created_at: string };
+type AdminReview = { id: string; deal_id: string; author_id: string; author_username: string; author_display_name: string; seller_id: string; rating: number; comment: string | null; created_at: string };
 
-type Tab = 'products' | 'users' | 'reports';
+type Tab = 'products' | 'users' | 'reports' | 'reviews';
 
 const reasonLabels: Record<string, string> = {
   fake: 'Подделка', prohibited: 'Запрещённый товар', spam: 'Спам', fraud: 'Мошенничество', wrong_info: 'Неверное описание', other: 'Другое',
@@ -37,6 +38,7 @@ export default function AdminPanel() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [reports, setReports] = useState<AdminReport[]>([]);
+  const [reviews, setReviews] = useState<AdminReview[]>([]);
   const [tab, setTab] = useState<Tab>('products');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -44,13 +46,14 @@ export default function AdminPanel() {
   const load = async () => {
     setLoading(true); setError('');
     try {
-      const [nextStats, nextUsers, nextProducts, nextReports] = await Promise.all([
+      const [nextStats, nextUsers, nextProducts, nextReports, nextReviews] = await Promise.all([
         adminRequest<Stats>('/api/v1/admin/stats'),
         adminRequest<AdminUser[]>('/api/v1/admin/users'),
         adminRequest<AdminProduct[]>('/api/v1/admin/products'),
         adminRequest<AdminReport[]>('/api/v1/admin/reports'),
+        adminRequest<AdminReview[]>('/api/v1/admin/reviews'),
       ]);
-      setStats(nextStats); setUsers(nextUsers); setProducts(nextProducts); setReports(nextReports);
+      setStats(nextStats); setUsers(nextUsers); setProducts(nextProducts); setReports(nextReports); setReviews(nextReviews);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Не удалось загрузить админ-панель');
     } finally { setLoading(false); }
@@ -72,6 +75,14 @@ export default function AdminPanel() {
       setProducts((items) => items.filter((item) => item.id !== product.id));
       setStats((value) => value ? { ...value, products: Math.max(0, value.products - 1) } : value);
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Не удалось удалить товар'); }
+  };
+
+  const removeReview = async (review: AdminReview) => {
+    if (!window.confirm(`Удалить отзыв от @${review.author_username}?`)) return;
+    try {
+      await adminRequest(`/api/v1/admin/reviews/${review.id}`, { method: 'DELETE' });
+      setReviews((items) => items.filter((item) => item.id !== review.id));
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Не удалось удалить отзыв'); }
   };
 
   const decideReport = async (report: AdminReport, archiveProduct: boolean) => {
@@ -104,6 +115,7 @@ export default function AdminPanel() {
       <button className={tab === 'products' ? 'active' : ''} onClick={() => setTab('products')}>Объявления</button>
       <button className={tab === 'users' ? 'active' : ''} onClick={() => setTab('users')}>Пользователи</button>
       <button className={tab === 'reports' ? 'active' : ''} onClick={() => setTab('reports')}>Жалобы {reports.filter((item) => item.status === 'pending').length || ''}</button>
+      <button className={tab === 'reviews' ? 'active' : ''} onClick={() => setTab('reviews')}>Отзывы {reviews.length || ''}</button>
     </nav>
 
     {tab === 'products' && <section className="admin-list">
@@ -136,6 +148,18 @@ export default function AdminPanel() {
           <button className="approve" onClick={() => decideReport(report, true)}>Скрыть товар</button>
         </div>}
       </article>) : <div className="admin-card"><strong>Жалоб пока нет</strong></div>}
+    </section>}
+
+    {tab === 'reviews' && <section className="admin-list">
+      {reviews.length ? reviews.map((review) => <article className="admin-card admin-review" key={review.id}>
+        <div>
+          <span>{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</span>
+          <strong>{review.author_display_name} · @{review.author_username}</strong>
+          <small>{review.comment || 'Без комментария'} · {new Date(review.created_at).toLocaleDateString('ru-RU')}</small>
+        </div>
+        <Star size={18} />
+        <button className="danger" onClick={() => removeReview(review)}><Trash2 size={18} /></button>
+      </article>) : <div className="admin-card"><strong>Отзывов пока нет</strong></div>}
     </section>}
 
     <a className="admin-back" href="/">Вернуться в DRIPLY</a>
