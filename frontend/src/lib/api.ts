@@ -1,3 +1,5 @@
+import { auth } from './auth';
+
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
 
 export type ProductStatus = 'draft' | 'active' | 'reserved' | 'sold' | 'archived';
@@ -44,24 +46,35 @@ export type ApiProduct = {
   seller: SellerSummary;
 };
 
-export type ProductListResponse = {
-  items: ApiProduct[];
-  total: number;
-};
-
-export type CreateProfileInput = {
-  email?: string;
+export type ApiProfile = {
+  id: string;
+  email: string | null;
   username: string;
   display_name: string;
-  avatar_url?: string;
-  phone?: string;
+  avatar_url: string | null;
+  phone: string | null;
   country_code: string;
   city: string;
-  bio?: string;
+  bio: string | null;
+  is_verified: boolean;
+  rating: string;
+  created_at: string;
+};
+
+export type ProductListResponse = { items: ApiProduct[]; total: number };
+
+export type ProfileInput = {
+  username: string;
+  display_name: string;
+  avatar_url?: string | null;
+  phone?: string | null;
+  country_code: string;
+  city: string;
+  bio?: string | null;
 };
 
 export type CreateProductInput = {
-  seller_id: string;
+  seller_id?: string;
   title: string;
   brand: string;
   category: string;
@@ -84,26 +97,27 @@ class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
-  });
+async function request<T>(path: string, options?: RequestInit, protectedRoute = false): Promise<T> {
+  const headers = new Headers(options?.headers);
+  headers.set('Content-Type', 'application/json');
 
+  if (protectedRoute) {
+    const token = await auth.accessToken();
+    if (!token) throw new ApiError(401, 'Сначала войдите в аккаунт');
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  const response = await fetch(`${API_URL}${path}`, { ...options, headers });
   if (!response.ok) {
     let message = `Ошибка API: ${response.status}`;
     try {
       const body = await response.json() as { detail?: string };
       if (body.detail) message = body.detail;
     } catch {
-      // Response may not contain JSON.
+      // The response can be empty or non-JSON.
     }
     throw new ApiError(response.status, message);
   }
-
   return response.json() as Promise<T>;
 }
 
@@ -115,42 +129,32 @@ export const api = {
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== '') search.set(key, String(value));
     });
-    const suffix = search.size ? `?${search.toString()}` : '';
-    return request<ProductListResponse>(`/api/v1/products${suffix}`);
+    return request<ProductListResponse>(`/api/v1/products${search.size ? `?${search}` : ''}`);
   },
 
   product: (productId: string) => request<ApiProduct>(`/api/v1/products/${productId}`),
 
-  createProfile: (payload: CreateProfileInput) => request('/api/v1/profiles', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  }),
+  myProfile: () => request<ApiProfile>('/api/v1/me/profile', undefined, true),
+  saveMyProfile: (payload: ProfileInput) => request<ApiProfile>('/api/v1/me/profile', {
+    method: 'PUT', body: JSON.stringify(payload),
+  }, true),
 
-  createProduct: (payload: CreateProductInput) => request<ApiProduct>('/api/v1/products', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  }),
+  myProducts: () => request<ProductListResponse>('/api/v1/me/products', undefined, true),
+  createMyProduct: (payload: CreateProductInput) => request<ApiProduct>('/api/v1/me/products', {
+    method: 'POST', body: JSON.stringify(payload),
+  }, true),
 
-  recordView: (productId: string, userId?: string) => request(`/api/v1/products/${productId}/view`, {
-    method: 'POST',
-    body: JSON.stringify({ user_id: userId || null }),
-  }),
+  swipe: (productId: string, action: SwipeAction) => request(`/api/v1/me/products/${productId}/swipe`, {
+    method: 'POST', body: JSON.stringify({ action }),
+  }, true),
 
-  swipe: (productId: string, userId: string, action: SwipeAction) => request(`/api/v1/products/${productId}/swipe`, {
-    method: 'POST',
-    body: JSON.stringify({ user_id: userId, action }),
-  }),
+  addFavorite: (productId: string) => request(`/api/v1/me/products/${productId}/favorite`, {
+    method: 'POST', body: JSON.stringify({}),
+  }, true),
 
-  addFavorite: (productId: string, userId: string) => request(`/api/v1/products/${productId}/favorite`, {
-    method: 'POST',
-    body: JSON.stringify({ user_id: userId }),
+  recordView: (productId: string) => request(`/api/v1/products/${productId}/view`, {
+    method: 'POST', body: JSON.stringify({ user_id: null }),
   }),
-
-  removeFavorite: (productId: string, userId: string) => request(`/api/v1/products/${productId}/favorite?user_id=${encodeURIComponent(userId)}`, {
-    method: 'DELETE',
-  }),
-
-  favorites: (userId: string) => request<ProductListResponse>(`/api/v1/profiles/${userId}/favorites`),
 };
 
 export { API_URL, ApiError };
