@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Bell, ChevronLeft, Heart, Home, MessageCircle, Plus, Search, Settings, SlidersHorizontal, User, X } from 'lucide-react';
 
 import CreateProductScreen from './CreateProductScreen';
@@ -21,63 +21,83 @@ const currencySymbols: Record<string, string> = {
   RUB: '₽', BYN: 'Br', KZT: '₸', UAH: '₴', AMD: '֏', GEL: '₾',
 };
 
-const demoProducts: ApiProduct[] = [
-  {
-    id: 'demo-1', seller_id: 'demo', title: 'Чёрная куртка с капюшоном', brand: 'STONE ISLAND', category: 'Куртки',
-    description: 'Оригинальная куртка в отличном состоянии. Возможна отправка или личная встреча.', size: 'L', color: 'Чёрный', condition: '9/10',
-    price: '21900', currency: 'RUB', country_code: 'RU', city: 'Москва', delivery: null, status: 'active', views_count: 0, favorites_count: 312,
-    created_at: new Date().toISOString(), images: [
-      { id: 'd1', url: 'https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?auto=format&fit=crop&w=1200&q=85', position: 0, is_cover: true },
-      { id: 'd2', url: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?auto=format&fit=crop&w=1200&q=85', position: 1, is_cover: false },
-    ], seller: { id: 'demo', username: 'drip.collector', display_name: 'DRIP', avatar_url: null, city: 'Москва', country_code: 'RU', is_verified: true, rating: '4.9' },
-  },
-  {
-    id: 'demo-2', seller_id: 'demo', title: 'Кроссовки 530', brand: 'NEW BALANCE', category: 'Кроссовки',
-    description: 'Кроссовки в хорошем состоянии, коробка в комплекте.', size: '43', color: 'Красный', condition: '8/10',
-    price: '14900', currency: 'RUB', country_code: 'RU', city: 'Санкт-Петербург', delivery: null, status: 'active', views_count: 0, favorites_count: 208,
-    created_at: new Date().toISOString(), images: [{ id: 'd3', url: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=1200&q=85', position: 0, is_cover: true }],
-    seller: { id: 'demo', username: 'sneaker.head', display_name: 'Sneaker Head', avatar_url: null, city: 'Санкт-Петербург', country_code: 'RU', is_verified: true, rating: '4.8' },
-  },
-];
-
 function formatPrice(product: ApiProduct) {
   const value = Number(product.price);
-  const formatted = Number.isFinite(value) ? new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(value) : product.price;
+  const formatted = Number.isFinite(value)
+    ? new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(value)
+    : product.price;
   return `${formatted} ${currencySymbols[product.currency] || product.currency}`;
 }
 
+function orderedImages(product: ApiProduct) {
+  return [...product.images].sort((a, b) => a.position - b.position);
+}
+
 function cover(product: ApiProduct) {
-  return [...product.images].sort((a, b) => a.position - b.position)[0]?.url || '';
+  return orderedImages(product)[0]?.url || '';
 }
 
 export default function MarketplaceApp({ profile }: Props) {
   const [screen, setScreen] = useState<Screen>('feed');
-  const [feedProducts, setFeedProducts] = useState<ApiProduct[]>(demoProducts);
+  const [feedProducts, setFeedProducts] = useState<ApiProduct[]>([]);
   const [myProducts, setMyProducts] = useState<ApiProduct[]>([]);
-  const [selectedId, setSelectedId] = useState(demoProducts[0].id);
+  const [favoriteProducts, setFavoriteProducts] = useState<ApiProduct[]>([]);
+  const [selectedId, setSelectedId] = useState<string>('');
   const [photoIndex, setPhotoIndex] = useState(0);
+  const [feedIndex, setFeedIndex] = useState(0);
+  const [history, setHistory] = useState<number[]>([]);
   const [liked, setLiked] = useState<string[]>([]);
   const [query, setQuery] = useState('');
   const [notice, setNotice] = useState('');
   const [loadingProducts, setLoadingProducts] = useState(true);
+  const [cardMotion, setCardMotion] = useState<'left' | 'right' | 'back' | null>(null);
+  const noticeTimer = useRef<number | null>(null);
+
+  const refreshMarketplace = async () => {
+    const [feedResult, mineResult, favoritesResult] = await Promise.allSettled([
+      api.products({ status: 'active' }),
+      api.myProducts(),
+      api.favorites(profile.id),
+    ]);
+
+    if (feedResult.status === 'fulfilled') {
+      setFeedProducts(feedResult.value.items);
+      setFeedIndex((current) => Math.min(current, Math.max(feedResult.value.items.length - 1, 0)));
+    }
+    if (mineResult.status === 'fulfilled') setMyProducts(mineResult.value.items);
+    if (favoritesResult.status === 'fulfilled') {
+      setFavoriteProducts(favoritesResult.value.items);
+      setLiked(favoritesResult.value.items.map((item) => item.id));
+    }
+    setLoadingProducts(false);
+  };
 
   useEffect(() => {
     let active = true;
-    Promise.allSettled([api.products(), api.myProducts()]).then(([feedResult, mineResult]) => {
+    Promise.allSettled([
+      api.products({ status: 'active' }),
+      api.myProducts(),
+      api.favorites(profile.id),
+    ]).then(([feedResult, mineResult, favoritesResult]) => {
       if (!active) return;
-      if (feedResult.status === 'fulfilled' && feedResult.value.items.length) setFeedProducts(feedResult.value.items);
+      if (feedResult.status === 'fulfilled') setFeedProducts(feedResult.value.items);
       if (mineResult.status === 'fulfilled') setMyProducts(mineResult.value.items);
+      if (favoritesResult.status === 'fulfilled') {
+        setFavoriteProducts(favoritesResult.value.items);
+        setLiked(favoritesResult.value.items.map((item) => item.id));
+      }
       setLoadingProducts(false);
     });
     return () => { active = false; };
-  }, []);
+  }, [profile.id]);
 
+  const currentFeedProduct = feedProducts[feedIndex];
   const selectedProduct = useMemo(() => {
-    return [...myProducts, ...feedProducts].find((item) => item.id === selectedId) || feedProducts[0];
-  }, [feedProducts, myProducts, selectedId]);
+    return [...myProducts, ...feedProducts, ...favoriteProducts].find((item) => item.id === selectedId) || currentFeedProduct;
+  }, [favoriteProducts, feedProducts, currentFeedProduct, myProducts, selectedId]);
 
   const filtered = useMemo(() => feedProducts.filter((item) =>
-    `${item.brand} ${item.title} ${item.city}`.toLowerCase().includes(query.toLowerCase())
+    `${item.brand} ${item.title} ${item.category} ${item.city}`.toLowerCase().includes(query.toLowerCase())
   ), [feedProducts, query]);
 
   const initials = (profile.display_name || profile.username || 'U').trim().slice(0, 1).toUpperCase();
@@ -91,19 +111,71 @@ export default function MarketplaceApp({ profile }: Props) {
 
   const showNotice = (text: string) => {
     setNotice(text);
-    window.setTimeout(() => setNotice(''), 1800);
+    if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
+    noticeTimer.current = window.setTimeout(() => setNotice(''), 1800);
   };
 
   const openProduct = (product: ApiProduct) => {
     setSelectedId(product.id);
     setPhotoIndex(0);
     navigate('product');
-    if (!product.id.startsWith('demo-')) api.recordView(product.id).catch(() => undefined);
+    api.recordView(product.id).catch(() => undefined);
   };
 
-  const toggleLike = (product: ApiProduct) => {
-    setLiked((current) => current.includes(product.id) ? current.filter((id) => id !== product.id) : [...current, product.id]);
-    if (!product.id.startsWith('demo-')) api.addFavorite(product.id).catch(() => undefined);
+  const moveFeed = (direction: 'next' | 'previous', action?: 'skip' | 'like') => {
+    if (!feedProducts.length || cardMotion) return;
+    const product = feedProducts[feedIndex];
+
+    if (direction === 'previous') {
+      const previousIndex = history.at(-1);
+      if (previousIndex === undefined) {
+        showNotice('Это первый просмотренный товар');
+        return;
+      }
+      setCardMotion('back');
+      window.setTimeout(() => {
+        setFeedIndex(previousIndex);
+        setHistory((items) => items.slice(0, -1));
+        setPhotoIndex(0);
+        setCardMotion(null);
+      }, 230);
+      return;
+    }
+
+    setHistory((items) => [...items.slice(-19), feedIndex]);
+    setCardMotion(action === 'like' ? 'right' : 'left');
+    if (action) api.swipe(product.id, action).catch(() => undefined);
+
+    window.setTimeout(() => {
+      setFeedIndex((current) => feedProducts.length > 1 ? (current + 1) % feedProducts.length : current);
+      setSelectedId('');
+      setPhotoIndex(0);
+      setCardMotion(null);
+    }, 260);
+  };
+
+  const toggleLike = async (product: ApiProduct) => {
+    const isLiked = liked.includes(product.id);
+    setLiked((current) => isLiked ? current.filter((id) => id !== product.id) : [...current, product.id]);
+    setFavoriteProducts((current) => isLiked
+      ? current.filter((item) => item.id !== product.id)
+      : current.some((item) => item.id === product.id) ? current : [product, ...current]);
+
+    try {
+      if (isLiked) await api.removeFavorite(product.id);
+      else await api.addFavorite(product.id);
+    } catch {
+      setLiked((current) => isLiked ? [...current, product.id] : current.filter((id) => id !== product.id));
+      setFavoriteProducts((current) => isLiked
+        ? current.some((item) => item.id === product.id) ? current : [product, ...current]
+        : current.filter((item) => item.id !== product.id));
+      showNotice('Не удалось обновить избранное');
+    }
+  };
+
+  const likeAndNext = async (product: ApiProduct) => {
+    if (!liked.includes(product.id)) await toggleLike(product);
+    moveFeed('next', 'like');
   };
 
   const header = (title = 'DRIPLY', back = false) => (
@@ -112,25 +184,28 @@ export default function MarketplaceApp({ profile }: Props) {
         {back ? <ChevronLeft /> : <Bell size={21} />}
       </button>
       <div className="brand"><strong>{title}</strong>{title === 'DRIPLY' && <span>ЛИСТАЙ. НАХОДИ. НОСИ.</span>}</div>
-      <button className="icon-button pressable" onClick={() => title === 'Профиль' ? showNotice('Настройки профиля появятся следующим этапом') : navigate('filters')}>
+      <button className="icon-button pressable" onClick={() => title === 'Профиль' ? showNotice('Редактирование профиля — следующий этап') : navigate('filters')}>
         {title === 'Профиль' ? <Settings size={21} /> : <SlidersHorizontal size={21} />}
       </button>
     </header>
   );
 
   const renderFeed = () => {
-    const product = selectedProduct || feedProducts[0];
-    if (!product) return <>{header()}<div className="empty-state"><b>Пока нет товаров</b></div></>;
-    const images = [...product.images].sort((a, b) => a.position - b.position);
+    const product = currentFeedProduct;
+    if (loadingProducts) return <>{header()}<div className="empty-state motion-pop"><b>Загружаем свежие вещи…</b></div></>;
+    if (!product) return <>{header()}<div className="empty-state motion-pop"><b>В ленте пока нет товаров</b><p>Опубликуй первую вещь — она появится здесь.</p><button className="primary-button" onClick={() => navigate('create')}>Добавить товар</button></div></>;
+
+    const images = orderedImages(product);
     const activeImage = images[photoIndex % Math.max(images.length, 1)];
     return <>
       {header()}
-      <nav className="feed-tabs motion-tabs"><button className="active">Для вас</button><button>Подписки</button><button>Рядом</button></nav>
+      <nav className="feed-tabs motion-tabs"><button className="active">Для вас</button><button onClick={() => showNotice('Подписки появятся позже')}>Подписки</button><button onClick={() => showNotice(`Показываем товары рядом с ${profile.city}`)}>Рядом</button></nav>
       <section className="swipe-stage">
         <div className="card-stack-shadow card-stack-shadow-one" />
         <div className="card-stack-shadow card-stack-shadow-two" />
-        <article className="product-card draggable-card" onClick={() => openProduct(product)}>
+        <article className={`product-card draggable-card ${cardMotion ? `swipe-${cardMotion}` : ''}`} onClick={() => openProduct(product)}>
           {activeImage && <img src={activeImage.url} alt={product.title} draggable={false} />}
+          {images.length > 1 && <div className="photo-progress">{images.map((image, index) => <span key={image.id} className={index === photoIndex ? 'active' : ''} />)}</div>}
           <div className="photo-tap-zones">
             <button type="button" onClick={(event) => { event.stopPropagation(); setPhotoIndex((value) => (value - 1 + images.length) % images.length); }} />
             <button type="button" onClick={(event) => { event.stopPropagation(); setPhotoIndex((value) => (value + 1) % images.length); }} />
@@ -139,13 +214,13 @@ export default function MarketplaceApp({ profile }: Props) {
           <div className="product-copy top-copy"><span className="eyebrow">{product.brand}</span><span>{product.title}</span></div>
           <span className="new-badge">НОВОЕ</span>
           <div className="product-copy bottom-copy"><span>{product.size || '—'} · {product.city}</span><strong>{formatPrice(product)}</strong></div>
-          <span className="likes"><Heart size={16} /> {product.favorites_count}</span>
+          <span className="likes"><Heart size={16} /> {product.favorites_count + (liked.includes(product.id) ? 1 : 0)}</span>
         </article>
       </section>
       <section className="swipe-actions motion-actions">
-        <button className="round secondary pressable" onClick={() => showNotice('Возврат к прошлому товару')}>↶</button>
-        <button className="round secondary pressable danger-action" onClick={() => { const next = (feedProducts.findIndex((item) => item.id === product.id) + 1) % feedProducts.length; setSelectedId(feedProducts[next].id); setPhotoIndex(0); }}><X /></button>
-        <button className={`round primary pressable like-action ${liked.includes(product.id) ? 'is-liked' : ''}`} onClick={() => toggleLike(product)}><Heart fill="currentColor" /></button>
+        <button className="round secondary pressable" onClick={() => moveFeed('previous')}>↶</button>
+        <button className="round secondary pressable danger-action" onClick={() => moveFeed('next', 'skip')}><X /></button>
+        <button className={`round primary pressable like-action ${liked.includes(product.id) ? 'is-liked' : ''}`} onClick={() => likeAndNext(product)}><Heart fill="currentColor" /></button>
         <button className="round secondary pressable boost-action" onClick={() => showNotice('Продвижение появится позже')}>⚡</button>
       </section>
     </>;
@@ -154,27 +229,27 @@ export default function MarketplaceApp({ profile }: Props) {
   const renderExplore = () => <>
     {header('Поиск', true)}
     <div className="search-box motion-search"><Search size={19} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Бренд, категория или город" /></div>
-    <div className="product-grid">{filtered.map((item) => <button key={item.id} className="grid-item pressable-card" onClick={() => openProduct(item)}><img src={cover(item)} alt={item.title} /><b>{formatPrice(item)}</b><span>{item.title}</span></button>)}</div>
+    {filtered.length ? <div className="product-grid">{filtered.map((item) => <button key={item.id} className="grid-item pressable-card motion-pop" onClick={() => openProduct(item)}><img src={cover(item)} alt={item.title} /><b>{formatPrice(item)}</b><span>{item.title}</span></button>)}</div> : <div className="empty-state"><b>Ничего не найдено</b><p>Попробуй другой бренд, категорию или город.</p></div>}
   </>;
 
   const renderProduct = () => {
     const product = selectedProduct;
-    if (!product) return null;
-    const images = [...product.images].sort((a, b) => a.position - b.position);
+    if (!product) return <>{header('Товар', true)}<div className="empty-state"><b>Товар не найден</b></div></>;
+    const images = orderedImages(product);
     return <>
       {header('Товар', true)}
       <div className="detail-image-wrap detail-gallery">
-        <img className="detail-image" src={images[photoIndex % images.length]?.url} alt={product.title} />
-        <div className="photo-tap-zones"><button onClick={() => setPhotoIndex((value) => (value - 1 + images.length) % images.length)} /><button onClick={() => setPhotoIndex((value) => (value + 1) % images.length)} /></div>
-        <span className="photo-counter">{photoIndex + 1} / {images.length}</span>
+        {images.length > 0 && <img className="detail-image" src={images[photoIndex % images.length]?.url} alt={product.title} />}
+        {images.length > 1 && <div className="photo-tap-zones"><button onClick={() => setPhotoIndex((value) => (value - 1 + images.length) % images.length)} /><button onClick={() => setPhotoIndex((value) => (value + 1) % images.length)} /></div>}
+        <span className="photo-counter">{Math.min(photoIndex + 1, images.length)} / {images.length}</span>
       </div>
-      <section className="detail-card">
-        <div className="detail-title"><div><b>{product.brand}</b><h1>{product.title}</h1></div><button className="icon-button" onClick={() => toggleLike(product)}><Heart fill={liked.includes(product.id) ? 'currentColor' : 'none'} /></button></div>
+      <section className="detail-card motion-pop">
+        <div className="detail-title"><div><b>{product.brand}</b><h1>{product.title}</h1></div><button className="icon-button pressable" onClick={() => toggleLike(product)}><Heart fill={liked.includes(product.id) ? 'currentColor' : 'none'} /></button></div>
         <strong className="detail-price">{formatPrice(product)}</strong>
         <div className="spec-grid"><span><small>Размер</small>{product.size || '—'}</span><span><small>Состояние</small>{product.condition}</span><span><small>Цвет</small>{product.color || '—'}</span><span><small>Город</small>{product.city}</span></div>
-        <div className="detail-description"><h3>Описание</h3><p>{product.description}</p></div>
+        <div className="detail-description"><h3>Описание</h3><p>{product.description}</p>{product.delivery && <><h3>Доставка</h3><p>{product.delivery}</p></>}</div>
         <h3>Продавец</h3>
-        <div className="detail-seller"><div className="avatar">{product.seller.display_name.slice(0, 1).toUpperCase()}</div><div><b>{product.seller.username}</b><small>★ {product.seller.rating}</small></div><button onClick={() => product.seller_id === profile.id ? navigate('profile') : showNotice('Публичный профиль продавца будет следующим этапом')}>Профиль</button></div>
+        <div className="detail-seller"><div className="avatar">{(product.seller.display_name || product.seller.username).slice(0, 1).toUpperCase()}</div><div><b>{product.seller.username}{product.seller.is_verified ? ' ✓' : ''}</b><small>{product.seller.city} · ★ {product.seller.rating}</small></div><button onClick={() => product.seller_id === profile.id ? navigate('profile') : showNotice('Публичный профиль продавца — следующий этап')}>Профиль</button></div>
         <button className="primary-button" onClick={() => navigate('messages')}><MessageCircle size={19} /> Написать продавцу</button>
       </section>
     </>;
@@ -195,11 +270,15 @@ export default function MarketplaceApp({ profile }: Props) {
     )}
   </>;
 
-  const renderLikes = () => <>{header('Избранное', true)}<div className="product-grid">{feedProducts.filter((item) => liked.includes(item.id)).map((item) => <button key={item.id} className="grid-item" onClick={() => openProduct(item)}><img src={cover(item)} alt={item.title} /><b>{formatPrice(item)}</b><span>{item.title}</span></button>)}</div></>;
-  const renderMessages = () => <>{header('Сообщения', true)}<div className="empty-state"><b>Сообщений пока нет</b><p>Чаты с продавцами появятся здесь.</p></div></>;
-  const renderFilters = () => <>{header('Фильтры', true)}<div className="form filters"><label>Категория<select><option>Все категории</option><option>Куртки</option><option>Кроссовки</option></select></label><label>Город<input placeholder={profile.city} /></label><button className="primary-button" onClick={() => navigate('feed')}>Показать товары</button></div></>;
+  const renderLikes = () => <>
+    {header('Избранное', true)}
+    {favoriteProducts.length ? <div className="product-grid">{favoriteProducts.map((item) => <button key={item.id} className="grid-item pressable-card motion-pop" onClick={() => openProduct(item)}><img src={cover(item)} alt={item.title} /><b>{formatPrice(item)}</b><span>{item.title}</span></button>)}</div> : <div className="empty-state motion-pop"><Heart /><b>Избранное пока пустое</b><p>Нажимай сердце или свайпай карточки вправо.</p></div>}
+  </>;
 
-  if (screen === 'create') return <main className="app-shell"><CreateProductScreen profile={profile} onBack={() => navigate('profile')} onCreated={(product) => { setMyProducts((items) => [product, ...items]); setFeedProducts((items) => [product, ...items]); setSelectedId(product.id); showNotice('Товар опубликован'); navigate('profile'); }} /></main>;
+  const renderMessages = () => <>{header('Сообщения', true)}<div className="empty-state"><b>Сообщений пока нет</b><p>Чаты с продавцами появятся здесь.</p></div></>;
+  const renderFilters = () => <>{header('Фильтры', true)}<div className="form filters"><label>Категория<select><option>Все категории</option><option>Куртки</option><option>Кроссовки</option><option>Худи</option></select></label><label>Город<input placeholder={profile.city} /></label><button className="primary-button" onClick={() => navigate('feed')}>Показать товары</button></div></>;
+
+  if (screen === 'create') return <main className="app-shell"><CreateProductScreen profile={profile} onBack={() => navigate('profile')} onCreated={(product) => { setMyProducts((items) => [product, ...items]); setFeedProducts((items) => [product, ...items]); setSelectedId(product.id); setFeedIndex(0); showNotice('Товар опубликован'); navigate('profile'); refreshMarketplace().catch(() => undefined); }} /></main>;
 
   const content = screen === 'feed' ? renderFeed() : screen === 'explore' ? renderExplore() : screen === 'profile' ? renderProfile() : screen === 'product' ? renderProduct() : screen === 'likes' ? renderLikes() : screen === 'messages' ? renderMessages() : renderFilters();
 
