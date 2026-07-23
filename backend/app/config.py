@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:5173"
     supabase_url: str | None = None
     supabase_service_role_key: str | None = None
+    admin_emails: str = ""
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -30,6 +31,10 @@ class Settings(BaseSettings):
             self.frontend_url.rstrip("/"),
         }
         return sorted(value for value in values if value)
+
+    @property
+    def admin_email_set(self) -> set[str]:
+        return {value.strip().lower() for value in self.admin_emails.split(",") if value.strip()}
 
 
 @lru_cache
