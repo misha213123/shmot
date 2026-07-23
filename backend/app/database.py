@@ -41,7 +41,7 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def create_database_tables() -> None:
-    from . import models  # noqa: F401
+    from . import moderation_models, models  # noqa: F401
 
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
