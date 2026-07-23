@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import AdminPanel from './app/AdminPanel';
 import AppRoot from './app/AppRoot';
+import { enableAdvancedSearchRuntime } from './lib/advancedSearchRuntime';
 import { enableChatRuntime } from './lib/chatRuntime';
 import { enableDealRuntime } from './lib/dealRuntime';
 import { enableFeedLoadingCleanup } from './lib/removeFeedLoadingText';
@@ -15,6 +16,7 @@ import { enableSocialRuntime } from './lib/socialRuntime';
 import './styles/global.css';
 import './styles/mobile.css';
 import './styles/profile.css';
+import './styles/advanced-search.css';
 import './styles/deals.css';
 import './styles/reports.css';
 import './styles/reservations.css';
@@ -34,6 +36,7 @@ if (!isAdminRoute) {
   enableSocialRuntime();
   enableDealRuntime();
   enableReviewRuntime();
+  enableAdvancedSearchRuntime();
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
