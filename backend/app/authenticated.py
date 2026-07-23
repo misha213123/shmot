@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 from .auth import AuthUser, get_current_user
 from .database import get_session
 from .marketplace import product_to_schema
-from .models import Favorite, Product, ProductImage, ProductStatus, Profile, SwipeAction
+from .models import Favorite, Follow, Notification, NotificationType, Product, ProductImage, ProductStatus, Profile, SwipeAction
 from .schemas import (
     ActionResponse,
     ProductCreate,
@@ -68,7 +68,7 @@ async def upsert_my_profile(payload: ProfileUpsert, user: AuthUser = Depends(get
 
 @router.post("/products", response_model=ProductRead, status_code=status.HTTP_201_CREATED)
 async def create_my_product(payload: ProductCreate, user: AuthUser = Depends(get_current_user), session: AsyncSession = Depends(get_session)) -> ProductRead:
-    await require_profile(user, session)
+    seller = await require_profile(user, session)
     product_data = payload.model_dump(exclude={"images", "seller_id"})
     product_data["seller_id"] = user.id
     product_data["currency"] = payload.currency.upper()
@@ -80,6 +80,21 @@ async def create_my_product(payload: ProductCreate, user: AuthUser = Depends(get
         for index, image in enumerate(payload.images)
     ]
     session.add(product)
+    await session.flush()
+
+    follower_ids = (
+        await session.scalars(select(Follow.follower_id).where(Follow.seller_id == user.id))
+    ).all()
+    for follower_id in follower_ids:
+        session.add(Notification(
+            user_id=follower_id,
+            actor_id=user.id,
+            product_id=product.id,
+            type=NotificationType.new_product,
+            title=f"Новая вещь от @{seller.username}",
+            body=f"{product.brand} — {product.title}",
+        ))
+
     await session.commit()
     statement = select(Product).where(Product.id == product.id).options(selectinload(Product.images), selectinload(Product.seller))
     saved = await session.scalar(statement)
