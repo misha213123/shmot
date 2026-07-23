@@ -144,12 +144,16 @@ export const api = {
     method: 'POST', body: JSON.stringify(payload),
   }, true),
 
-  swipe: (productId: string, action: SwipeAction) => request(`/api/v1/me/products/${productId}/swipe`, {
-    method: 'POST', body: JSON.stringify({ action }),
-  }, true),
-
+  favorites: (profileId: string) => request<ProductListResponse>(`/api/v1/profiles/${profileId}/favorites`),
   addFavorite: (productId: string) => request(`/api/v1/me/products/${productId}/favorite`, {
     method: 'POST', body: JSON.stringify({}),
+  }, true),
+  removeFavorite: (productId: string) => request(`/api/v1/products/${productId}/favorite`, {
+    method: 'DELETE', body: JSON.stringify({ user_id: null }),
+  }, true),
+
+  swipe: (productId: string, action: SwipeAction) => request(`/api/v1/me/products/${productId}/swipe`, {
+    method: 'POST', body: JSON.stringify({ action }),
   }, true),
 
   recordView: (productId: string) => request(`/api/v1/products/${productId}/view`, {
