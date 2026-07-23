@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import AdminPanel from './app/AdminPanel';
 import AppRoot from './app/AppRoot';
 import { enableChatRuntime } from './lib/chatRuntime';
 import { enableFeedLoadingCleanup } from './lib/removeFeedLoadingText';
@@ -12,15 +13,19 @@ import './styles/mobile.css';
 import './styles/profile.css';
 import './styles/reservations.css';
 
-enableInstantMarketplaceCache();
-enableFeedLoadingCleanup();
-enableProfileDomSync();
-enableProductEditDomSync();
-enableChatRuntime();
-enableReservationDomSync();
+const isAdminRoute = window.location.pathname === '/admin';
+
+if (!isAdminRoute) {
+  enableInstantMarketplaceCache();
+  enableFeedLoadingCleanup();
+  enableProfileDomSync();
+  enableProductEditDomSync();
+  enableChatRuntime();
+  enableReservationDomSync();
+}
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <AppRoot />
+    {isAdminRoute ? <AdminPanel /> : <AppRoot />}
   </React.StrictMode>,
 );
