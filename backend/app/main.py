@@ -7,6 +7,7 @@ from .authenticated import router as authenticated_router
 from .config import get_settings
 from .database import create_database_tables
 from .marketplace import router as marketplace_router
+from .product_edit import router as product_edit_router
 
 settings = get_settings()
 
@@ -19,7 +20,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(
     title="DRIPLY API",
-    version="0.3.0",
+    version="0.4.0",
     description="API маркетплейса одежды DRIPLY",
     lifespan=lifespan,
 )
@@ -34,11 +35,12 @@ app.add_middleware(
 
 app.include_router(marketplace_router)
 app.include_router(authenticated_router)
+app.include_router(product_edit_router)
 
 
 @app.get("/")
 async def root() -> dict[str, str]:
-    return {"name": "DRIPLY API", "status": "ok", "version": "0.3.0"}
+    return {"name": "DRIPLY API", "status": "ok", "version": "0.4.0"}
 
 
 @app.get("/health")
