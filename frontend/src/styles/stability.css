@@ -9,6 +9,21 @@
   cursor: grabbing;
 }
 
+/* Never allow feed layers to remain over product, search, likes or profile screens. */
+.app-shell:not(.feed-screen) .feed-tabs,
+.app-shell:not(.feed-screen) .swipe-stage,
+.app-shell:not(.feed-screen) .swipe-actions,
+.app-shell:not(.feed-screen) .card-stack-shadow,
+.app-shell:not(.feed-screen) .product-card.draggable-card {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transform: none !important;
+  opacity: 0 !important;
+  animation: none !important;
+  transition: none !important;
+}
+
 @media (max-width: 600px) {
   html,
   body,
