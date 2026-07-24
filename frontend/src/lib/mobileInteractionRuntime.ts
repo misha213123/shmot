@@ -32,7 +32,8 @@ function openDealFromFirstTap(button: HTMLElement, event: Event): void {
 
   const handler = (button as HTMLButtonElement).onclick;
   if (typeof handler === 'function') {
-    handler.call(button, event as MouseEvent);
+    const safeHandler = handler as unknown as (this: HTMLButtonElement, event: Event) => unknown;
+    safeHandler.call(button as HTMLButtonElement, event);
   } else {
     window.setTimeout(() => button.click(), 0);
   }
