@@ -60,36 +60,7 @@ if (!rootElement) {
   );
 }
 
-type OptionalRuntimeResult = void | (() => void);
-type OptionalRuntime = () => Promise<OptionalRuntimeResult>;
-
-async function enableOptionalRuntimes(): Promise<void> {
-  if (isAdminRoute) return;
-
-  const runtimes: OptionalRuntime[] = [
-    async () => (await import('./lib/instantMarketplaceCache')).enableInstantMarketplaceCache(),
-    async () => (await import('./lib/removeFeedLoadingText')).enableFeedLoadingCleanup(),
-    async () => (await import('./lib/profileDomSync')).enableProfileDomSync(),
-    async () => (await import('./lib/productEditDomSync')).enableProductEditDomSync(),
-    async () => (await import('./lib/chatRuntime')).enableChatRuntime(),
-    async () => (await import('./lib/reservationDomSync')).enableReservationDomSync(),
-    async () => (await import('./lib/reportRuntime')).enableReportRuntime(),
-    async () => (await import('./lib/socialRuntime')).enableSocialRuntime(),
-    async () => (await import('./lib/dealRuntime')).enableDealRuntime(),
-    async () => (await import('./lib/reviewRuntime')).enableReviewRuntime(),
-    async () => (await import('./lib/advancedSearchRuntime')).enableAdvancedSearchRuntime(),
-    async () => (await import('./lib/recommendationRuntime')).enableRecommendationRuntime(),
-  ];
-
-  for (const enable of runtimes) {
-    try {
-      await enable();
-    } catch (error) {
-      console.error('Optional DRIPLY module failed to start', error);
-    }
-  }
-}
-
-window.setTimeout(() => {
-  void enableOptionalRuntimes();
-}, 0);
+// DOM-based optional runtimes are temporarily disabled.
+// They were intercepting taps and mutating the React interface directly,
+// which caused Safari/iOS to freeze after navigation. Core marketplace
+// functionality remains inside the React application and is stable.
