@@ -154,6 +154,7 @@ async function enableOptionalRuntimes(): Promise<void> {
 
   const runtimes: OptionalRuntime[] = [
     async () => (await import('./lib/mobileInteractionRuntime')).enableMobileInteractionRuntime(),
+    async () => (await import('./lib/iosSwipeRuntime')).enableIosSwipeRuntime(),
     async () => (await import('./lib/feedChromeRuntime')).enableFeedChromeRuntime(),
     async () => (await import('./lib/instantMarketplaceCache')).enableInstantMarketplaceCache(),
     async () => (await import('./lib/removeFeedLoadingText')).enableFeedLoadingCleanup(),
