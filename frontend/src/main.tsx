@@ -158,6 +158,7 @@ async function enableOptionalRuntimes(): Promise<void> {
   if (isAdminRoute) return;
 
   const runtimes: OptionalRuntime[] = [
+    async () => (await import('./lib/mobileInteractionRuntime')).enableMobileInteractionRuntime(),
     async () => (await import('./lib/instantMarketplaceCache')).enableInstantMarketplaceCache(),
     async () => (await import('./lib/removeFeedLoadingText')).enableFeedLoadingCleanup(),
     async () => (await import('./lib/profileDomSync')).enableProfileDomSync(),
