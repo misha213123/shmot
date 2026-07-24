@@ -159,22 +159,23 @@ function installFullscreenFeedStyles(): void {
   style.id = 'driply-fullscreen-feed';
   style.textContent = `
     .app-shell.feed-screen{width:min(100%,430px);height:100dvh;min-height:100dvh;padding:0 0 calc(72px + env(safe-area-inset-bottom));background:#090909;color:#fff;overflow:hidden}
-    .feed-screen .screen-transition{height:calc(100dvh - 72px - env(safe-area-inset-bottom));overflow:hidden}
-    .feed-screen .topbar{position:absolute;z-index:12;top:max(12px,env(safe-area-inset-top));left:0;right:0;display:grid;grid-template-columns:1fr;padding:0 18px;pointer-events:none;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.45)}
+    .feed-screen .screen-transition{position:relative;height:calc(100dvh - 72px - env(safe-area-inset-bottom));min-height:0;overflow:hidden}
+    .feed-screen .topbar{position:fixed;z-index:20;top:max(12px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);width:min(100%,430px);display:grid;grid-template-columns:1fr;padding:0 18px;pointer-events:none;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.45)}
     .feed-screen .topbar .brand strong{font-size:25px;color:#fff}
     .feed-screen .topbar .brand span,.feed-screen .topbar .icon-button{display:none!important}
     .feed-screen .feed-tabs{display:none!important}
-    .feed-screen .swipe-stage{position:relative;width:100%;height:100%;display:block;overflow:hidden}
+    .feed-screen .swipe-stage{position:absolute!important;inset:0!important;width:100%!important;height:auto!important;min-height:0!important;display:block!important;overflow:hidden!important;background:#111}
     .feed-screen .card-stack-shadow{display:none!important}
-    .feed-screen .product-card{position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;border-radius:0;box-shadow:none;background:#111;touch-action:pan-y}
-    .feed-screen .product-card img{width:100%;height:100%;object-fit:cover}
-    .feed-screen .product-gradient{background:linear-gradient(to bottom,rgba(0,0,0,.24),transparent 28%,transparent 54%,rgba(0,0,0,.78))}
+    .feed-screen .product-card{position:absolute!important;inset:0!important;z-index:1;width:100%!important;height:100%!important;min-height:100%!important;aspect-ratio:auto!important;border-radius:0!important;box-shadow:none!important;background:#111!important;display:block!important;overflow:hidden!important;touch-action:pan-y}
+    .feed-screen .product-card>img{position:absolute!important;inset:0!important;z-index:0;width:100%!important;height:100%!important;object-fit:cover!important;display:block!important;opacity:1!important}
+    .feed-screen .product-gradient{z-index:1;background:linear-gradient(to bottom,rgba(0,0,0,.24),transparent 28%,transparent 54%,rgba(0,0,0,.78))}
+    .feed-screen .product-copy,.feed-screen .new-badge,.feed-screen .likes,.feed-screen .photo-progress,.feed-screen .photo-tap-zones{z-index:3}
     .feed-screen .top-copy{top:76px;left:20px}
     .feed-screen .bottom-copy{left:20px;bottom:30px;max-width:72%}
     .feed-screen .bottom-copy strong{font-size:38px}
     .feed-screen .new-badge{top:76px;right:18px}
     .feed-screen .likes{right:20px;bottom:30px}
-    .feed-screen .swipe-actions{position:absolute;right:14px;bottom:88px;z-index:15;display:flex;flex-direction:column-reverse;gap:12px;margin:0;align-items:center}
+    .feed-screen .swipe-actions{position:fixed!important;right:max(14px,calc((100vw - 430px)/2 + 14px))!important;bottom:calc(88px + env(safe-area-inset-bottom))!important;z-index:25!important;display:flex!important;flex-direction:column-reverse!important;gap:12px!important;margin:0!important;align-items:center!important;width:auto!important}
     .feed-screen .swipe-actions .round{width:50px;height:50px;background:rgba(20,20,20,.56);color:#fff;border:1px solid rgba(255,255,255,.22);box-shadow:0 7px 20px rgba(0,0,0,.28);backdrop-filter:blur(14px)}
     .feed-screen .swipe-actions .round.primary{width:58px;height:58px;background:#fff;color:#111}
     .feed-screen .bottom-nav{background:linear-gradient(to top,rgba(0,0,0,.94),rgba(0,0,0,.35));border-top:0;color:#fff;backdrop-filter:none}
@@ -182,7 +183,7 @@ function installFullscreenFeedStyles(): void {
     .feed-screen .bottom-nav button.active{color:#fff}
     .feed-screen .bottom-nav button.active:before{background:#fff}
     .feed-screen .bottom-nav .create{background:#fff;color:#111}
-    @media (max-height:720px){.feed-screen .swipe-actions{bottom:72px}.feed-screen .top-copy,.feed-screen .new-badge{top:62px}.feed-screen .bottom-copy,.feed-screen .likes{bottom:20px}}
+    @media (max-height:720px){.feed-screen .swipe-actions{bottom:calc(72px + env(safe-area-inset-bottom))!important}.feed-screen .top-copy,.feed-screen .new-badge{top:62px}.feed-screen .bottom-copy,.feed-screen .likes{bottom:20px}}
   `;
   document.head.append(style);
 }
