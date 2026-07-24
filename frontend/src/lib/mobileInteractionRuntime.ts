@@ -25,14 +25,14 @@ function closeDealOverlay(event?: Event): void {
   document.body.style.removeProperty('overflow');
 }
 
-function openDealFromFirstTap(button: HTMLElement, event: Event): void {
+function openDealFromFirstTap(button: HTMLElement, event: PointerEvent): void {
   event.preventDefault();
   event.stopPropagation();
   event.stopImmediatePropagation();
 
   const handler = (button as HTMLButtonElement).onclick;
   if (typeof handler === 'function') {
-    handler.call(button, event as MouseEvent);
+    handler.call(button, event);
   } else {
     window.setTimeout(() => button.click(), 0);
   }
