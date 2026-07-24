@@ -45,6 +45,65 @@ class AppErrorBoundary extends Component<BoundaryProps, BoundaryState> {
   }
 }
 
+/**
+ * Several legacy marketplace modules enrich React screens through DOM observers.
+ * On iOS Safari many observers can trigger one another during navigation and create
+ * an endless microtask loop. This wrapper keeps every feature enabled, but batches
+ * observer callbacks and limits them to one execution per animation frame.
+ */
+function installSafeMutationObserver(): void {
+  const NativeMutationObserver = window.MutationObserver;
+  if (!NativeMutationObserver || (window as Window & { __driplySafeObserver?: boolean }).__driplySafeObserver) return;
+
+  class SafeMutationObserver implements MutationObserver {
+    private readonly nativeObserver: MutationObserver;
+    private readonly callback: MutationCallback;
+    private queuedRecords: MutationRecord[] = [];
+    private scheduled = false;
+    private disconnected = false;
+
+    constructor(callback: MutationCallback) {
+      this.callback = callback;
+      this.nativeObserver = new NativeMutationObserver((records) => {
+        if (this.disconnected) return;
+        this.queuedRecords.push(...records);
+        if (this.scheduled) return;
+        this.scheduled = true;
+        window.requestAnimationFrame(() => {
+          this.scheduled = false;
+          if (this.disconnected || this.queuedRecords.length === 0) return;
+          const batch = this.queuedRecords.splice(0, this.queuedRecords.length);
+          try {
+            this.callback(batch, this);
+          } catch (error) {
+            console.error('DRIPLY observer callback failed', error);
+          }
+        });
+      });
+    }
+
+    observe(target: Node, options?: MutationObserverInit): void {
+      this.disconnected = false;
+      this.nativeObserver.observe(target, options);
+    }
+
+    disconnect(): void {
+      this.disconnected = true;
+      this.queuedRecords = [];
+      this.nativeObserver.disconnect();
+    }
+
+    takeRecords(): MutationRecord[] {
+      return [...this.queuedRecords.splice(0), ...this.nativeObserver.takeRecords()];
+    }
+  }
+
+  window.MutationObserver = SafeMutationObserver as unknown as typeof MutationObserver;
+  (window as Window & { __driplySafeObserver?: boolean }).__driplySafeObserver = true;
+}
+
+installSafeMutationObserver();
+
 const isAdminRoute = window.location.pathname === '/admin';
 const rootElement = document.getElementById('root');
 
