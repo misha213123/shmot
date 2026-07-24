@@ -1,7 +1,8 @@
 let started = false;
 
 function isFeedVisible(): boolean {
-  return Boolean(document.querySelector('.swipe-stage .product-card'));
+  const app = document.querySelector('.app-shell');
+  return Boolean(app?.classList.contains('feed-screen') && app.querySelector('.swipe-stage .product-card'));
 }
 
 function closePanel(): void {
@@ -51,7 +52,7 @@ function openNotifications(): void {
 }
 
 function openCurrentProduct(): void {
-  const card = document.querySelector<HTMLElement>('.swipe-stage .product-card');
+  const card = document.querySelector<HTMLElement>('.app-shell.feed-screen .swipe-stage .product-card');
   if (!card) return;
   card.click();
 }
@@ -123,7 +124,7 @@ export function enableFeedChromeRuntime(): () => void {
     });
   };
   const observer = new MutationObserver(schedule);
-  observer.observe(document.body, { childList: true, subtree: true });
+  observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
   schedule();
 
   return () => {
