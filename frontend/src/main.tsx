@@ -102,7 +102,39 @@ function installSafeMutationObserver(): void {
   (window as Window & { __driplySafeObserver?: boolean }).__driplySafeObserver = true;
 }
 
+function installRuntimeDomGuard(): void {
+  let frame = 0;
+
+  const clean = () => {
+    frame = 0;
+    const profile = document.querySelector('.profile-head');
+    const entries = Array.from(document.querySelectorAll<HTMLElement>('.deal-center-button'));
+
+    if (!profile) {
+      entries.forEach((entry) => entry.remove());
+      return;
+    }
+
+    const keep = entries[0];
+    entries.slice(1).forEach((entry) => entry.remove());
+
+    if (keep && keep.previousElementSibling !== profile) {
+      profile.insertAdjacentElement('afterend', keep);
+    }
+  };
+
+  const schedule = () => {
+    if (frame) return;
+    frame = window.requestAnimationFrame(clean);
+  };
+
+  const observer = new MutationObserver(schedule);
+  observer.observe(document.body, { childList: true, subtree: true });
+  schedule();
+}
+
 installSafeMutationObserver();
+installRuntimeDomGuard();
 
 const isAdminRoute = window.location.pathname === '/admin';
 const rootElement = document.getElementById('root');
