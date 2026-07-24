@@ -4,6 +4,9 @@ import { auth } from './auth';
 let lastSellerId = '';
 let unreadCount = 0;
 let refreshTimer = 0;
+let enabled = false;
+let inspectTimer = 0;
+const pendingHeroes = new WeakSet<Element>();
 
 async function protectedRequest<T>(path: string, options?: RequestInit): Promise<T> {
   const token = await auth.accessToken();
@@ -107,24 +110,31 @@ function updateBadge() {
   const topbar = Array.from(document.querySelectorAll('.topbar')).find((node) => node.querySelector('.brand strong')?.textContent?.trim() === 'DRIPLY');
   const bell = topbar?.querySelector('button');
   if (!bell) return;
+
   let badge = bell.querySelector('.social-badge') as HTMLElement | null;
   if (!badge) {
     badge = document.createElement('span');
     badge.className = 'social-badge';
     bell.appendChild(badge);
   }
-  badge.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
-  badge.hidden = unreadCount === 0;
+
+  const nextText = unreadCount > 99 ? '99+' : String(unreadCount);
+  if (badge.textContent !== nextText) badge.textContent = nextText;
+  const shouldHide = unreadCount === 0;
+  if (badge.hidden !== shouldHide) badge.hidden = shouldHide;
 }
 
 async function addFollowButton(hero: Element) {
-  if (!lastSellerId || hero.querySelector('.seller-follow-button')) return;
+  if (!lastSellerId || hero.querySelector('.seller-follow-button') || pendingHeroes.has(hero)) return;
+  pendingHeroes.add(hero);
   try {
     let state = await protectedRequest<FollowState>(`/api/v1/me/following/${lastSellerId}`);
+    if (!hero.isConnected || hero.querySelector('.seller-follow-button')) return;
     const button = document.createElement('button');
     button.className = `seller-follow-button ${state.following ? 'following' : ''}`;
     const render = () => {
-      button.textContent = state.following ? `Вы подписаны · ${state.followers_count}` : `Подписаться · ${state.followers_count}`;
+      const nextText = state.following ? `Вы подписаны · ${state.followers_count}` : `Подписаться · ${state.followers_count}`;
+      if (button.textContent !== nextText) button.textContent = nextText;
       button.classList.toggle('following', state.following);
     };
     render();
@@ -138,13 +148,20 @@ async function addFollowButton(hero: Element) {
     const contact = hero.querySelector('.seller-contact');
     contact?.before(button);
   } catch {
-    // The public profile remains usable if social API is temporarily unavailable.
+    // Public seller profile remains usable if social API is unavailable.
+  } finally {
+    pendingHeroes.delete(hero);
   }
 }
 
 function inspectDom() {
-  document.querySelectorAll('.seller-profile-hero').forEach(addFollowButton);
+  document.querySelectorAll('.seller-profile-hero').forEach((hero) => { void addFollowButton(hero); });
   updateBadge();
+}
+
+function scheduleInspect() {
+  window.clearTimeout(inspectTimer);
+  inspectTimer = window.setTimeout(inspectDom, 80);
 }
 
 function installFetchObserver() {
@@ -155,16 +172,20 @@ function installFetchObserver() {
     const match = url.match(/\/api\/v1\/profiles\/([0-9a-f-]{36})(?:\?|$)/i);
     if (match) {
       lastSellerId = match[1];
-      window.setTimeout(inspectDom, 50);
+      scheduleInspect();
     }
     return response;
   };
 }
 
 export function enableSocialRuntime() {
+  if (enabled) return;
+  enabled = true;
+
   installFetchObserver();
-  const observer = new MutationObserver(inspectDom);
-  observer.observe(document.documentElement, { subtree: true, childList: true });
+  const root = document.querySelector('.app-shell') || document.getElementById('root') || document.body;
+  const observer = new MutationObserver(scheduleInspect);
+  observer.observe(root, { subtree: true, childList: true });
 
   document.addEventListener('click', (event) => {
     const target = event.target as HTMLElement | null;
@@ -173,7 +194,6 @@ export function enableSocialRuntime() {
 
     if (button.closest('.feed-tabs') && button.textContent?.trim() === 'Подписки') {
       event.preventDefault();
-      event.stopPropagation();
       openFollowing();
       return;
     }
@@ -183,12 +203,16 @@ export function enableSocialRuntime() {
     const firstButton = topbar?.querySelector('button');
     if (title === 'DRIPLY' && firstButton === button) {
       event.preventDefault();
-      event.stopPropagation();
       loadNotifications(false);
     }
   }, true);
 
-  window.setTimeout(() => loadNotifications(true), 1200);
-  refreshTimer = window.setInterval(() => loadNotifications(true), 30000);
-  window.addEventListener('beforeunload', () => window.clearInterval(refreshTimer), { once: true });
+  scheduleInspect();
+  window.setTimeout(() => { void loadNotifications(true); }, 1200);
+  refreshTimer = window.setInterval(() => { void loadNotifications(true); }, 30000);
+  window.addEventListener('beforeunload', () => {
+    observer.disconnect();
+    window.clearInterval(refreshTimer);
+    window.clearTimeout(inspectTimer);
+  }, { once: true });
 }
