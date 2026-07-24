@@ -43,8 +43,9 @@
 }
 
 .feed-notification-control span::before {
-  content: '♧';
-  font-size: 27px;
+  content: '🔔';
+  font-size: 23px;
+  filter: grayscale(1) brightness(4);
 }
 
 .feed-open-product-control {
@@ -53,6 +54,26 @@
 
 .feed-open-product-control span {
   font-size: 27px;
+}
+
+/* The old "new" badge can be empty after product normalization. Do not render
+   an unexplained white pill in the top-right corner of the fullscreen feed. */
+.app-shell:has(.swipe-stage) .new-badge,
+.feed-screen .new-badge {
+  display: none !important;
+}
+
+/* Let Safari hand horizontal movement to our touch runtime across the image,
+   including the invisible previous/next-photo tap zones. */
+.app-shell:has(.swipe-stage) .swipe-stage,
+.app-shell:has(.swipe-stage) .product-card,
+.app-shell:has(.swipe-stage) .photo-tap-zones,
+.feed-screen .swipe-stage,
+.feed-screen .product-card,
+.feed-screen .photo-tap-zones {
+  touch-action: pan-y !important;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* Keep the DRIPLY logo precisely centered between the two header buttons. */
