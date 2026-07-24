@@ -12,6 +12,7 @@ import './styles/reports.css';
 import './styles/reservations.css';
 import './styles/reviews.css';
 import './styles/social.css';
+import './styles/fullscreen-feed.css';
 
 type BoundaryProps = { children: ReactNode };
 type BoundaryState = { failed: boolean };
@@ -45,12 +46,6 @@ class AppErrorBoundary extends Component<BoundaryProps, BoundaryState> {
   }
 }
 
-/**
- * Several legacy marketplace modules enrich React screens through DOM observers.
- * On iOS Safari many observers can trigger one another during navigation and create
- * an endless microtask loop. This wrapper keeps every feature enabled, but batches
- * observer callbacks and limits them to one execution per animation frame.
- */
 function installSafeMutationObserver(): void {
   const NativeMutationObserver = window.MutationObserver;
   if (!NativeMutationObserver || (window as Window & { __driplySafeObserver?: boolean }).__driplySafeObserver) return;
@@ -159,6 +154,7 @@ async function enableOptionalRuntimes(): Promise<void> {
 
   const runtimes: OptionalRuntime[] = [
     async () => (await import('./lib/mobileInteractionRuntime')).enableMobileInteractionRuntime(),
+    async () => (await import('./lib/feedChromeRuntime')).enableFeedChromeRuntime(),
     async () => (await import('./lib/instantMarketplaceCache')).enableInstantMarketplaceCache(),
     async () => (await import('./lib/removeFeedLoadingText')).enableFeedLoadingCleanup(),
     async () => (await import('./lib/profileDomSync')).enableProfileDomSync(),
