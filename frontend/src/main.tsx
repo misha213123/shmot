@@ -60,10 +60,13 @@ if (!rootElement) {
   );
 }
 
+type OptionalRuntimeResult = void | (() => void);
+type OptionalRuntime = () => Promise<OptionalRuntimeResult>;
+
 async function enableOptionalRuntimes(): Promise<void> {
   if (isAdminRoute) return;
 
-  const runtimes: Array<() => Promise<void>> = [
+  const runtimes: OptionalRuntime[] = [
     async () => (await import('./lib/instantMarketplaceCache')).enableInstantMarketplaceCache(),
     async () => (await import('./lib/removeFeedLoadingText')).enableFeedLoadingCleanup(),
     async () => (await import('./lib/profileDomSync')).enableProfileDomSync(),
