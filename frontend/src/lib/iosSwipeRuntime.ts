@@ -13,8 +13,17 @@ let suppressClickUntil = 0;
 
 function getCard(target: EventTarget | null): HTMLElement | null {
   if (!(target instanceof Element)) return null;
-  if (target.closest('button, a, input, textarea, select')) return null;
-  return target.closest<HTMLElement>('.feed-screen .draggable-card, .feed-screen .product-card');
+
+  // Do not start a card swipe from real interface controls. Photo tap zones are
+  // intentionally allowed: on the fullscreen feed they cover most of the image.
+  if (target.closest('.swipe-actions, .bottom-nav, .feed-chrome-controls, .topbar, input, textarea, select, a')) {
+    return null;
+  }
+
+  const stage = target.closest('.feed-screen .swipe-stage, .app-shell:has(.swipe-stage) .swipe-stage');
+  if (!stage) return null;
+
+  return stage.querySelector<HTMLElement>('.draggable-card, .product-card');
 }
 
 function reset(card: HTMLElement): void {
@@ -35,7 +44,9 @@ function complete(card: HTMLElement, direction: 'left' | 'right'): void {
   card.style.opacity = '0';
   suppressClickUntil = performance.now() + 650;
 
-  const action = document.querySelector<HTMLButtonElement>(positive ? '.feed-screen .like-action' : '.feed-screen .danger-action');
+  const action = document.querySelector<HTMLButtonElement>(
+    positive ? '.feed-screen .like-action, .like-action' : '.feed-screen .danger-action, .danger-action',
+  );
   window.setTimeout(() => action?.click(), 70);
   window.setTimeout(() => reset(card), 340);
 }
@@ -55,8 +66,8 @@ function onTouchMove(event: TouchEvent): void {
   const dy = touch.clientY - drag.startY;
 
   if (!drag.horizontal) {
-    if (Math.abs(dx) < 7 && Math.abs(dy) < 7) return;
-    if (Math.abs(dy) >= Math.abs(dx)) {
+    if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+    if (Math.abs(dy) > Math.abs(dx) * 1.15) {
       drag = null;
       return;
     }
@@ -64,6 +75,7 @@ function onTouchMove(event: TouchEvent): void {
   }
 
   event.preventDefault();
+  event.stopPropagation();
   drag.dx = dx;
   drag.card.style.transition = 'none';
   drag.card.style.transform = `translate3d(${dx}px,0,0) rotate(${dx / 24}deg)`;
@@ -78,14 +90,16 @@ function onTouchEnd(event: TouchEvent): void {
 
   event.preventDefault();
   event.stopPropagation();
-  if (current.dx >= 62) complete(current.card, 'right');
-  else if (current.dx <= -62) complete(current.card, 'left');
+  suppressClickUntil = performance.now() + 500;
+
+  if (current.dx >= 48) complete(current.card, 'right');
+  else if (current.dx <= -48) complete(current.card, 'left');
   else reset(current.card);
 }
 
 function onClick(event: MouseEvent): void {
   if (performance.now() >= suppressClickUntil) return;
-  if (!(event.target instanceof Element) || !event.target.closest('.feed-screen .product-card')) return;
+  if (!(event.target instanceof Element) || !event.target.closest('.swipe-stage')) return;
   event.preventDefault();
   event.stopPropagation();
   event.stopImmediatePropagation();
