@@ -4,6 +4,7 @@ import { Flag, RefreshCw, Shield, ShieldCheck, Star, Trash2, UserPlus, Users } f
 import { API_URL } from '../lib/api';
 import { auth } from '../lib/auth';
 import '../styles/admin.css';
+import '../styles/admin-scroll-fix.css';
 
 type Stats = { users: number; products: number; active_products: number; sold_products: number };
 type AdminAccess = { is_admin: boolean; is_owner: boolean; username: string };
