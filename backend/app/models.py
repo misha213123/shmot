@@ -48,6 +48,15 @@ class Profile(Base):
     products: Mapped[list["Product"]] = relationship(back_populates="seller", cascade="all, delete-orphan")
 
 
+class AdminRole(Base):
+    __tablename__ = "admin_roles"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("profiles.id", ondelete="CASCADE"), primary_key=True)
+    role: Mapped[str] = mapped_column(String(20), default="admin")
+    granted_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Product(Base):
     __tablename__ = "products"
 
