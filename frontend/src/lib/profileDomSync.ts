@@ -3,6 +3,8 @@ type CachedProfile = {
   display_name?: string | null;
   city?: string | null;
   country_code?: string | null;
+  bio?: string | null;
+  rating?: string | number | null;
 };
 
 const countryNames: Record<string, string> = {
@@ -25,6 +27,19 @@ function readLatestProfile(): CachedProfile | null {
   }
 }
 
+function ensureMarketRole(profileHead: HTMLElement, profile: CachedProfile): void {
+  const screen = profileHead.closest('.screen-transition');
+  if (!screen) return;
+  let block = screen.querySelector<HTMLElement>('.profile-market-role');
+  if (!block) {
+    block = document.createElement('section');
+    block.className = 'profile-market-role';
+    profileHead.insertAdjacentElement('afterend', block);
+  }
+  const rating = Number(profile.rating || 0);
+  block.innerHTML = `<div><b>Покупатель и продавец</b><small>${rating > 0 ? `Рейтинг ${rating.toFixed(1)} · ` : ''}Можно покупать, продавать и принимать предложения цены</small></div><span>DRIPLY USER</span>`;
+}
+
 function syncProfileUi(): void {
   const profile = readLatestProfile();
   if (!profile) return;
@@ -45,6 +60,7 @@ function syncProfileUi(): void {
     if (avatar) avatar.textContent = initial;
     if (title) title.textContent = `@${username}`;
     if (subtitle) subtitle.textContent = location;
+    ensureMarketRole(profileHead, profile);
   }
 
   document.querySelectorAll<HTMLElement>('.detail-seller').forEach((seller) => {
