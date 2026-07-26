@@ -31,9 +31,17 @@ function cleanProfileDom(): void {
   dealEntries.slice(1).forEach((entry) => entry.remove());
   recommendationEntries.slice(1).forEach((entry) => entry.remove());
 
+  const role = document.querySelector<HTMLElement>('.profile-market-role');
   const dealEntry = dealEntries[0];
-  if (dealEntry && dealEntry.previousElementSibling !== profile) {
-    profile.insertAdjacentElement('afterend', dealEntry);
+  const dealAnchor = role || profile;
+  if (dealEntry && dealEntry.previousElementSibling !== dealAnchor) {
+    dealAnchor.insertAdjacentElement('afterend', dealEntry);
+  }
+
+  const recommendationEntry = recommendationEntries[0];
+  const recommendationAnchor = dealEntry || role || profile;
+  if (recommendationEntry && recommendationEntry.previousElementSibling !== recommendationAnchor) {
+    recommendationAnchor.insertAdjacentElement('afterend', recommendationEntry);
   }
 }
 
