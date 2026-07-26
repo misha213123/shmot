@@ -21,42 +21,51 @@ function installStyles(): void {
       .app-shell{
         position:fixed!important;
         inset:0!important;
-        left:0!important;
-        right:0!important;
         width:min(100%,430px)!important;
         height:100dvh!important;
         min-height:100dvh!important;
         max-height:100dvh!important;
         margin:0 auto!important;
+        padding:0!important;
+        overflow:hidden!important;
         transform:none!important;
+        contain:none!important;
       }
-      .app-shell:not(.feed-screen){
+      /* Content scrolls in its own layer. Navigation never participates in that scroll. */
+      .app-shell .screen-transition{
+        position:absolute!important;
+        inset:0 0 calc(82px + env(safe-area-inset-bottom)) 0!important;
+        width:100%!important;
+        height:auto!important;
+        min-height:0!important;
+        padding:max(16px,env(safe-area-inset-top)) 18px 28px!important;
         overflow-x:hidden!important;
         overflow-y:auto!important;
         -webkit-overflow-scrolling:touch!important;
         overscroll-behavior-y:contain!important;
         touch-action:pan-y!important;
       }
-      .app-shell.feed-screen{
+      .app-shell.feed-screen .screen-transition{
+        display:grid!important;
+        grid-template-rows:auto auto minmax(0,1fr) auto!important;
         overflow:hidden!important;
+        touch-action:none!important;
       }
       .app-shell .bottom-nav{
-        position:fixed!important;
+        position:absolute!important;
+        inset:auto 0 0 0!important;
         left:0!important;
         right:0!important;
+        top:auto!important;
         bottom:0!important;
-        transform:none!important;
-        width:min(100%,430px)!important;
+        width:100%!important;
+        max-width:430px!important;
         margin:0 auto!important;
-        z-index:999!important;
+        transform:none!important;
+        translate:none!important;
         animation:none!important;
+        z-index:2147483000!important;
         will-change:auto!important;
-      }
-      .app-shell:not(.feed-screen) .screen-transition{
-        min-height:100%!important;
-        height:auto!important;
-        overflow:visible!important;
-        padding-bottom:calc(118px + env(safe-area-inset-bottom))!important;
       }
     }
     .bottom-nav .admin-nav-button{color:#111!important}
