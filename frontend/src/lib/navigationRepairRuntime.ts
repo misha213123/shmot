@@ -122,9 +122,46 @@ function installStyles(): void {
   const style = document.createElement('style');
   style.id = 'driply-navigation-repair-styles';
   style.textContent = `
-    .app-shell:not(.feed-screen){overflow-y:auto!important;-webkit-overflow-scrolling:touch!important;touch-action:pan-y!important;overscroll-behavior-y:contain!important}
-    .app-shell:not(.feed-screen)>.screen-transition{min-height:max-content!important;height:auto!important;overflow:visible!important;padding-bottom:calc(118px + env(safe-area-inset-bottom))!important}
-    .screen-transition:has(.profile-head){overflow:visible!important;min-height:max-content!important;padding-bottom:calc(130px + env(safe-area-inset-bottom))!important}
+    @media (max-width:600px){
+      .app-shell:not(.feed-screen){
+        position:fixed!important;
+        inset:0!important;
+        left:50%!important;
+        transform:translateX(-50%)!important;
+        width:min(100%,430px)!important;
+        height:100dvh!important;
+        min-height:0!important;
+        max-height:100dvh!important;
+        overflow-x:hidden!important;
+        overflow-y:scroll!important;
+        -webkit-overflow-scrolling:touch!important;
+        touch-action:pan-y!important;
+        overscroll-behavior-y:contain!important;
+        scrollbar-width:none!important;
+        padding-bottom:calc(112px + env(safe-area-inset-bottom))!important;
+      }
+      .app-shell:not(.feed-screen)::-webkit-scrollbar{display:none!important}
+      .app-shell:not(.feed-screen)>.screen-transition{
+        display:block!important;
+        position:relative!important;
+        width:100%!important;
+        height:auto!important;
+        min-height:calc(100dvh + 1px)!important;
+        max-height:none!important;
+        overflow:visible!important;
+        touch-action:pan-y!important;
+        padding-bottom:calc(150px + env(safe-area-inset-bottom))!important;
+      }
+      .screen-transition:has(.profile-head){
+        height:auto!important;
+        min-height:calc(100dvh + 180px)!important;
+        max-height:none!important;
+        overflow:visible!important;
+        touch-action:pan-y!important;
+        padding-bottom:calc(180px + env(safe-area-inset-bottom))!important;
+      }
+      .screen-transition:has(.profile-head) *:not(button):not(input):not(textarea):not(select){touch-action:pan-y!important}
+    }
     .profile-market-role{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 14px;padding:14px 16px;border:1px solid #e3dfd8;border-radius:18px;background:#fff;box-shadow:0 8px 24px rgba(17,17,17,.04)}
     .profile-market-role div{display:grid;gap:3px}.profile-market-role b{font-size:14px}.profile-market-role small{color:#77736d;font-size:12px}.profile-market-role span{padding:8px 11px;border-radius:999px;background:#111;color:#fff;font-size:11px;font-weight:850;white-space:nowrap}
     .deal-center-button+.deal-center-button{display:none!important}
