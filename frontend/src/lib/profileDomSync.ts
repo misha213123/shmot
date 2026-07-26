@@ -72,6 +72,8 @@ function syncProfileUi(): void {
 }
 
 export function enableProfileDomSync(): () => void {
+  void import('./navigationRepairRuntime').then(({ enableNavigationRepairRuntime }) => enableNavigationRepairRuntime()).catch(() => undefined);
+
   let frame = 0;
   const scheduleSync = () => {
     window.cancelAnimationFrame(frame);
