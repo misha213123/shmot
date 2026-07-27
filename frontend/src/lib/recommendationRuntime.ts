@@ -23,7 +23,7 @@ function escapeHtml(value: string) {
 function close() { document.querySelector('.recommendation-overlay')?.remove(); }
 
 function productCard(product: ApiProduct) {
-  return `<button class="recommendation-card" data-product-id="${product.id}">
+  return `<button type="button" class="recommendation-card" data-product-id="${product.id}">
     <span class="recommendation-image">${cover(product) ? `<img src="${escapeHtml(cover(product))}" alt="" />` : ''}</span>
     <b>${escapeHtml(product.brand)}</b>
     <span>${escapeHtml(product.title)}</span>
@@ -37,7 +37,7 @@ function openCollection(title: string, subtitle: string, products: ApiProduct[])
   const overlay = document.createElement('div');
   overlay.className = 'recommendation-overlay';
   overlay.innerHTML = `<section class="recommendation-sheet">
-    <button class="recommendation-close" aria-label="Закрыть">×</button>
+    <button type="button" class="recommendation-close" aria-label="Закрыть">×</button>
     <span class="recommendation-kicker">DRIPLY SMART FEED</span>
     <h2>${escapeHtml(title)}</h2>
     <p>${escapeHtml(subtitle)}</p>
@@ -58,11 +58,31 @@ function openCollection(title: string, subtitle: string, products: ApiProduct[])
         const input = document.querySelector<HTMLInputElement>('.search-box input');
         const product = [...recommendations, ...recent, ...trending].find((item) => item.id === productId);
         if (input && product) {
-          input.value = product.title;
+          const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+          setter?.call(input, product.title);
           input.dispatchEvent(new Event('input', { bubbles: true }));
+          input.dispatchEvent(new Event('change', { bubbles: true }));
         }
-      }, 120);
+      }, 160);
     };
+  });
+}
+
+function collectionCount(items: ApiProduct[]) {
+  return new Set(items.map((item) => item.id)).size;
+}
+
+function updateProfileCounts() {
+  const block = document.querySelector<HTMLElement>('.recommendation-profile-actions');
+  if (!block) return;
+  const values: Record<string, number> = {
+    personal: collectionCount(recommendations),
+    recent: collectionCount(recent),
+    trending: collectionCount(trending),
+  };
+  Object.entries(values).forEach(([key, value]) => {
+    const counter = block.querySelector<HTMLElement>(`[data-rec="${key}"] .recommendation-count`);
+    if (counter) counter.textContent = String(value);
   });
 }
 
@@ -73,6 +93,7 @@ async function loadCollections() {
   if (recommendedResult.status === 'fulfilled') recommendations = recommendedResult.value.items;
   if (recentResult.status === 'fulfilled') recent = recentResult.value.items;
   if (trendingResult.status === 'fulfilled') trending = trendingResult.value.items;
+  updateProfileCounts();
 }
 
 async function injectSimilar() {
@@ -95,18 +116,32 @@ async function injectSimilar() {
   }
 }
 
+function activateCollectionButton(button: HTMLElement) {
+  const key = button.dataset.rec;
+  if (key === 'personal') openCollection('Для тебя', 'Лента обучается на просмотрах, лайках, свайпах и подписках.', recommendations);
+  if (key === 'recent') openCollection('Недавно смотрели', 'Товары, которые ты открывал последними.', recent);
+  if (key === 'trending') openCollection('Сейчас популярно', 'Самые активные товары за последние дни.', trending);
+}
+
 function injectProfileCollections() {
   const profile = document.querySelector('.profile-head');
   if (!profile || document.querySelector('.recommendation-profile-actions')) return;
   const block = document.createElement('section');
   block.className = 'recommendation-profile-actions';
-  block.innerHTML = `<button data-rec="personal"><span>✦</span><b>Для тебя</b><small>Персональная подборка</small></button>
-    <button data-rec="recent"><span>◷</span><b>Недавно смотрели</b><small>История просмотров</small></button>
-    <button data-rec="trending"><span>🔥</span><b>Сейчас популярно</b><small>Товары с высокой активностью</small></button>`;
+  block.innerHTML = `<button type="button" data-rec="personal"><span class="recommendation-icon">✦</span><span class="recommendation-count">0</span><b>Для тебя</b><small>Персональная подборка</small></button>
+    <button type="button" data-rec="recent"><span class="recommendation-icon">◷</span><span class="recommendation-count">0</span><b>Недавно смотрели</b><small>История просмотров</small></button>
+    <button type="button" data-rec="trending"><span class="recommendation-icon">🔥</span><span class="recommendation-count">0</span><b>Сейчас популярно</b><small>Товары с высокой активностью</small></button>`;
   profile.insertAdjacentElement('afterend', block);
-  block.querySelector<HTMLElement>('[data-rec="personal"]')!.onclick = () => openCollection('Для тебя', 'Лента обучается на просмотрах, лайках, свайпах и подписках.', recommendations);
-  block.querySelector<HTMLElement>('[data-rec="recent"]')!.onclick = () => openCollection('Недавно смотрели', 'Товары, которые ты открывал последними.', recent);
-  block.querySelector<HTMLElement>('[data-rec="trending"]')!.onclick = () => openCollection('Сейчас популярно', 'Самые активные товары за последние дни.', trending);
+  block.querySelectorAll<HTMLElement>('[data-rec]').forEach((button) => {
+    button.addEventListener('click', () => activateCollectionButton(button));
+    button.addEventListener('pointerup', (event) => {
+      if (event.pointerType === 'touch') {
+        event.preventDefault();
+        activateCollectionButton(button);
+      }
+    }, { passive: false });
+  });
+  updateProfileCounts();
 }
 
 function bindFeedTabs() {
@@ -128,6 +163,7 @@ export function enableRecommendationRuntime(): void {
   }) as EventListener);
   const observer = new MutationObserver(() => {
     injectProfileCollections();
+    updateProfileCounts();
     bindFeedTabs();
     if (activeProductId) injectSimilar();
   });
