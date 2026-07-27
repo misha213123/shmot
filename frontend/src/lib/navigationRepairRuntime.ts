@@ -29,6 +29,9 @@ function restoreDocumentScroll(): void {
   document.body.style.setProperty('overflow-x', 'hidden', 'important');
   document.body.style.setProperty('overflow-y', 'auto', 'important');
   document.body.style.setProperty('touch-action', 'pan-y', 'important');
+
+  document.documentElement.scrollLeft = 0;
+  document.body.scrollLeft = 0;
 }
 
 function removeOverlay(selector: string): void {
@@ -96,9 +99,6 @@ function onPointerUp(event: PointerEvent): void {
     event.stopPropagation();
     event.stopImmediatePropagation();
     closeAllTransientUi();
-
-    // Mobile Safari can lose the generated click when a fixed element sits above
-    // a separately scrolling document. Dispatch one deterministic click here.
     navButton.click();
     navSyntheticButton = navButton;
     navSyntheticUntil = performance.now() + 650;
@@ -127,8 +127,6 @@ function onClickCapture(event: MouseEvent): void {
   const target = event.target instanceof Element ? event.target : null;
   const navButton = closest(event.target, '.bottom-nav button') as HTMLButtonElement | null;
 
-  // Ignore only Safari's delayed duplicate click. The immediate click created in
-  // onPointerUp runs before this guard is armed and reaches React normally.
   if (navButton && navSyntheticButton === navButton && performance.now() < navSyntheticUntil) {
     event.preventDefault();
     event.stopPropagation();
@@ -152,21 +150,26 @@ function installStyles(): void {
   style.id = 'driply-navigation-repair-styles';
   style.textContent = `
     @media (max-width:600px){
-      html,body,#root{width:100%!important;height:auto!important;min-height:100%!important;overflow-x:hidden!important}
+      html,body,#root{width:100%!important;max-width:100%!important;height:auto!important;min-height:100%!important;overflow-x:hidden!important}
       body{overflow-y:auto!important;-webkit-overflow-scrolling:touch!important;touch-action:pan-y!important}
       #root{overflow:visible!important}
 
       .app-shell:not(.feed-screen){
-        position:relative!important;inset:auto!important;left:auto!important;
-        width:min(100%,430px)!important;height:auto!important;min-height:100svh!important;max-height:none!important;
+        position:relative!important;inset:auto!important;left:auto!important;right:auto!important;
+        width:100%!important;max-width:430px!important;height:auto!important;min-height:100svh!important;max-height:none!important;
         margin:0 auto!important;padding:max(16px,env(safe-area-inset-top)) 18px calc(118px + env(safe-area-inset-bottom))!important;
-        overflow:visible!important;transform:none!important;translate:none!important;contain:none!important;touch-action:pan-y!important;
+        overflow-x:hidden!important;overflow-y:visible!important;transform:none!important;translate:none!important;contain:none!important;touch-action:pan-y!important;
       }
       .app-shell:not(.feed-screen)>.screen-transition{
-        position:relative!important;inset:auto!important;width:100%!important;height:auto!important;min-height:0!important;max-height:none!important;
-        padding:0!important;overflow:visible!important;transform:none!important;touch-action:pan-y!important;
+        position:relative!important;inset:auto!important;width:100%!important;max-width:100%!important;height:auto!important;min-height:0!important;max-height:none!important;
+        padding:0!important;overflow-x:hidden!important;overflow-y:visible!important;transform:none!important;touch-action:pan-y!important;
       }
+      .app-shell:not(.feed-screen)>.screen-transition *{max-width:100%}
       .app-shell:not(.feed-screen)>.screen-transition *:not(button):not(input):not(textarea):not(select){touch-action:pan-y!important}
+      .app-shell:not(.feed-screen) .topbar{width:100%!important;max-width:100%!important;overflow:visible!important}
+      .app-shell:not(.feed-screen) .brand{min-width:0!important;text-align:center!important}
+      .app-shell:not(.feed-screen) .brand strong{display:block!important;max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+      .app-shell:not(.feed-screen) .product-grid{width:100%!important;max-width:100%!important;overflow:hidden!important}
       .app-shell>.bottom-nav{
         position:fixed!important;top:auto!important;right:auto!important;bottom:0!important;left:50%!important;
         inset:auto auto 0 50%!important;width:min(100%,430px)!important;max-width:430px!important;margin:0!important;
