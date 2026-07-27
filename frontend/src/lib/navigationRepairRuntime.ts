@@ -1,6 +1,8 @@
 let started = false;
 let suppressUntil = 0;
 let suppressTarget: Element | null = null;
+let navSyntheticUntil = 0;
+let navSyntheticButton: HTMLButtonElement | null = null;
 
 function closest(target: EventTarget | null, selector: string): HTMLElement | null {
   return target instanceof Element ? target.closest<HTMLElement>(selector) : null;
@@ -88,6 +90,21 @@ function triggerFirstTap(button: HTMLElement, event: Event): void {
 }
 
 function onPointerUp(event: PointerEvent): void {
+  const navButton = closest(event.target, '.bottom-nav button') as HTMLButtonElement | null;
+  if (navButton && event.pointerType !== 'mouse') {
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    closeAllTransientUi();
+
+    // Mobile Safari can lose the generated click when a fixed element sits above
+    // a separately scrolling document. Dispatch one deterministic click here.
+    navButton.click();
+    navSyntheticButton = navButton;
+    navSyntheticUntil = performance.now() + 650;
+    return;
+  }
+
   const recommendationClose = closest(event.target, '.recommendation-close');
   if (recommendationClose) {
     event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
@@ -108,12 +125,25 @@ function onPointerUp(event: PointerEvent): void {
 
 function onClickCapture(event: MouseEvent): void {
   const target = event.target instanceof Element ? event.target : null;
+  const navButton = closest(event.target, '.bottom-nav button') as HTMLButtonElement | null;
+
+  // Ignore only Safari's delayed duplicate click. The immediate click created in
+  // onPointerUp runs before this guard is armed and reaches React normally.
+  if (navButton && navSyntheticButton === navButton && performance.now() < navSyntheticUntil) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    navSyntheticButton = null;
+    navSyntheticUntil = 0;
+    return;
+  }
+
   if (target && suppressTarget && performance.now() < suppressUntil && (target === suppressTarget || suppressTarget.contains(target))) {
     event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation(); return;
   }
   if (closest(event.target, '.recommendation-close')) { event.preventDefault(); event.stopPropagation(); removeOverlay('.recommendation-overlay'); return; }
   if (closest(event.target, '.deal-close')) { event.preventDefault(); event.stopPropagation(); removeOverlay('.deal-overlay'); return; }
-  if (closest(event.target, '.bottom-nav button')) closeAllTransientUi();
+  if (navButton) closeAllTransientUi();
 }
 
 function installStyles(): void {
@@ -141,6 +171,10 @@ function installStyles(): void {
         position:fixed!important;top:auto!important;right:auto!important;bottom:0!important;left:50%!important;
         inset:auto auto 0 50%!important;width:min(100%,430px)!important;max-width:430px!important;margin:0!important;
         transform:translate3d(-50%,0,0)!important;translate:none!important;animation:none!important;z-index:2147483000!important;
+        pointer-events:auto!important;touch-action:manipulation!important;isolation:isolate!important;
+      }
+      .app-shell>.bottom-nav button,.app-shell>.bottom-nav button *{
+        pointer-events:auto!important;touch-action:manipulation!important;-webkit-user-select:none!important;user-select:none!important;
       }
       .screen-transition:has(.profile-head){padding-bottom:16px!important}
     }
