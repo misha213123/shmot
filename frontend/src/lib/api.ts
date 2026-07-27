@@ -36,6 +36,10 @@ export type ApiNotification = {
 };
 export type NotificationListResponse = { items: ApiNotification[]; unread_count: number };
 
+type CacheEnvelope<T> = { value: T; savedAt: number };
+const CACHE_PREFIX = 'driply.api-cache.v2.';
+const CACHE_MAX_AGE_MS = 1000 * 60 * 30;
+
 class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); this.name = 'ApiError'; }
 }
@@ -58,39 +62,107 @@ async function request<T>(path: string, options?: RequestInit, protectedRoute = 
   return response.json() as Promise<T>;
 }
 
+function cacheKey(key: string) { return `${CACHE_PREFIX}${key}`; }
+
+function readCache<T>(key: string): T | null {
+  try {
+    const raw = localStorage.getItem(cacheKey(key));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as CacheEnvelope<T>;
+    if (!parsed || Date.now() - parsed.savedAt > CACHE_MAX_AGE_MS) return null;
+    return parsed.value;
+  } catch { return null; }
+}
+
+function writeCache<T>(key: string, value: T): void {
+  try { localStorage.setItem(cacheKey(key), JSON.stringify({ value, savedAt: Date.now() } satisfies CacheEnvelope<T>)); }
+  catch { /* private mode or storage limit */ }
+}
+
+function clearCache(...keys: string[]): void {
+  try { keys.forEach((key) => localStorage.removeItem(cacheKey(key))); } catch { /* ignore */ }
+}
+
+async function cachedRequest<T>(key: string, loader: () => Promise<T>): Promise<T> {
+  const cached = readCache<T>(key);
+  if (cached) {
+    void loader().then((fresh) => writeCache(key, fresh)).catch(() => undefined);
+    return cached;
+  }
+  const fresh = await loader();
+  writeCache(key, fresh);
+  return fresh;
+}
+
 export const api = {
   health: () => request<{ health: string; environment: string }>('/health'),
   products: (params: Record<string, string | number | undefined> = {}) => {
     const search = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => { if (value !== undefined && value !== '') search.set(key, String(value)); });
-    return request<ProductListResponse>(`/api/v1/products${search.size ? `?${search}` : ''}`);
+    const suffix = search.size ? `?${search}` : '';
+    return cachedRequest(`products:${suffix}`, () => request<ProductListResponse>(`/api/v1/products${suffix}`));
   },
-  product: (productId: string) => request<ApiProduct>(`/api/v1/products/${productId}`),
-  profile: (profileId: string) => request<ApiProfile>(`/api/v1/profiles/${profileId}`),
+  product: (productId: string) => cachedRequest(`product:${productId}`, () => request<ApiProduct>(`/api/v1/products/${productId}`)),
+  profile: (profileId: string) => cachedRequest(`profile:${profileId}`, () => request<ApiProfile>(`/api/v1/profiles/${profileId}`)),
   myProfile: () => request<ApiProfile>('/api/v1/me/profile', undefined, true),
-  saveMyProfile: (payload: ProfileInput) => request<ApiProfile>('/api/v1/me/profile', { method: 'PUT', body: JSON.stringify(payload) }, true),
-  myProducts: () => request<ProductListResponse>('/api/v1/me/products', undefined, true),
-  createMyProduct: (payload: ProductInput) => request<ApiProduct>('/api/v1/me/products', { method: 'POST', body: JSON.stringify(payload) }, true),
-  updateMyProduct: (productId: string, payload: ProductInput) => request<ApiProduct>(`/api/v1/me/products/${productId}`, { method: 'PUT', body: JSON.stringify(payload) }, true),
-  updateMyProductStatus: (productId: string, status: ProductStatus) => request<ApiProduct>(`/api/v1/me/products/${productId}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }, true),
-  deleteMyProduct: (productId: string) => request<{ ok: boolean; message: string }>(`/api/v1/me/products/${productId}`, { method: 'DELETE' }, true),
-  favorites: (profileId: string) => request<ProductListResponse>(`/api/v1/profiles/${profileId}/favorites`),
-  addFavorite: (productId: string) => request(`/api/v1/me/products/${productId}/favorite`, { method: 'POST', body: JSON.stringify({}) }, true),
-  removeFavorite: (productId: string) => request(`/api/v1/products/${productId}/favorite`, { method: 'DELETE', body: JSON.stringify({ user_id: null }) }, true),
+  saveMyProfile: async (payload: ProfileInput) => {
+    const result = await request<ApiProfile>('/api/v1/me/profile', { method: 'PUT', body: JSON.stringify(payload) }, true);
+    clearCache(`profile:${result.id}`);
+    return result;
+  },
+  myProducts: () => cachedRequest('me:products', () => request<ProductListResponse>('/api/v1/me/products', undefined, true)),
+  createMyProduct: async (payload: ProductInput) => {
+    const result = await request<ApiProduct>('/api/v1/me/products', { method: 'POST', body: JSON.stringify(payload) }, true);
+    clearCache('me:products', 'products:?status=active');
+    return result;
+  },
+  updateMyProduct: async (productId: string, payload: ProductInput) => {
+    const result = await request<ApiProduct>(`/api/v1/me/products/${productId}`, { method: 'PUT', body: JSON.stringify(payload) }, true);
+    clearCache('me:products', `product:${productId}`, 'products:?status=active');
+    return result;
+  },
+  updateMyProductStatus: async (productId: string, status: ProductStatus) => {
+    const result = await request<ApiProduct>(`/api/v1/me/products/${productId}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }, true);
+    clearCache('me:products', `product:${productId}`, 'products:?status=active');
+    return result;
+  },
+  deleteMyProduct: async (productId: string) => {
+    const result = await request<{ ok: boolean; message: string }>(`/api/v1/me/products/${productId}`, { method: 'DELETE' }, true);
+    clearCache('me:products', `product:${productId}`, 'products:?status=active');
+    return result;
+  },
+  favorites: (profileId: string) => cachedRequest(`favorites:${profileId}`, () => request<ProductListResponse>(`/api/v1/profiles/${profileId}/favorites`)),
+  addFavorite: async (productId: string) => {
+    const result = await request(`/api/v1/me/products/${productId}/favorite`, { method: 'POST', body: JSON.stringify({}) }, true);
+    try {
+      const session = await auth.session();
+      if (session) clearCache(`favorites:${session.user.id}`);
+    } catch { /* ignore */ }
+    return result;
+  },
+  removeFavorite: async (productId: string) => {
+    const result = await request(`/api/v1/products/${productId}/favorite`, { method: 'DELETE', body: JSON.stringify({ user_id: null }) }, true);
+    try {
+      const session = await auth.session();
+      if (session) clearCache(`favorites:${session.user.id}`);
+    } catch { /* ignore */ }
+    return result;
+  },
   swipe: (productId: string, action: SwipeAction) => request(`/api/v1/me/products/${productId}/swipe`, { method: 'POST', body: JSON.stringify({ action }) }, true),
-  following: () => request<ApiProfile[]>('/api/v1/me/following', undefined, true),
-  followingProducts: () => request<ProductListResponse>('/api/v1/me/following/products', undefined, true),
+  following: () => cachedRequest('me:following', () => request<ApiProfile[]>('/api/v1/me/following', undefined, true)),
+  followingProducts: () => cachedRequest('me:following-products', () => request<ProductListResponse>('/api/v1/me/following/products', undefined, true)),
   followState: (sellerId: string) => request<FollowState>(`/api/v1/me/following/${sellerId}`, undefined, true),
   followSeller: (sellerId: string) => request<FollowState>(`/api/v1/me/following/${sellerId}`, { method: 'POST', body: JSON.stringify({}) }, true),
   unfollowSeller: (sellerId: string) => request<FollowState>(`/api/v1/me/following/${sellerId}`, { method: 'DELETE' }, true),
-  notifications: () => request<NotificationListResponse>('/api/v1/me/notifications', undefined, true),
+  notifications: () => cachedRequest('me:notifications', () => request<NotificationListResponse>('/api/v1/me/notifications', undefined, true)),
   readAllNotifications: () => request<void>('/api/v1/me/notifications/read-all', { method: 'POST', body: JSON.stringify({}) }, true),
-  recommendations: () => request<ProductListResponse>('/api/v1/me/recommendations', undefined, true),
-  recentlyViewed: () => request<ProductListResponse>('/api/v1/me/recently-viewed', undefined, true),
-  similarProducts: (productId: string) => request<ProductListResponse>(`/api/v1/products/${productId}/similar`),
-  trending: () => request<ProductListResponse>('/api/v1/trending'),
+  recommendations: () => cachedRequest('me:recommendations', () => request<ProductListResponse>('/api/v1/me/recommendations', undefined, true)),
+  recentlyViewed: () => cachedRequest('me:recently-viewed', () => request<ProductListResponse>('/api/v1/me/recently-viewed', undefined, true)),
+  similarProducts: (productId: string) => cachedRequest(`similar:${productId}`, () => request<ProductListResponse>(`/api/v1/products/${productId}/similar`)),
+  trending: () => cachedRequest('trending', () => request<ProductListResponse>('/api/v1/trending')),
   recordView: (productId: string) => {
     window.dispatchEvent(new CustomEvent('driply:product-opened', { detail: { productId } }));
+    clearCache('me:recently-viewed', 'me:recommendations');
     return request(`/api/v1/me/products/${productId}/view`, { method: 'POST', body: JSON.stringify({}) }, true);
   },
 };
