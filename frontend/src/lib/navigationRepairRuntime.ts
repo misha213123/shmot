@@ -30,26 +30,20 @@ function cleanProfileDom(): void {
     return;
   }
 
-  const role = roles[0];
-  roles.slice(1).forEach((entry) => entry.remove());
-  dealEntries.slice(1).forEach((entry) => entry.remove());
-  recommendationEntries.slice(1).forEach((entry) => entry.remove());
+  const keepFirst = (entries: HTMLElement[]) => {
+    entries.slice(1).forEach((entry) => entry.remove());
+    return entries[0];
+  };
 
-  if (role && role.previousElementSibling !== profile) {
-    profile.insertAdjacentElement('afterend', role);
-  }
+  const role = keepFirst(roles);
+  const dealEntry = keepFirst(dealEntries);
+  const recommendationEntry = keepFirst(recommendationEntries);
 
-  const dealEntry = dealEntries[0];
+  if (role && role.previousElementSibling !== profile) profile.insertAdjacentElement('afterend', role);
   const dealAnchor = role || profile;
-  if (dealEntry && dealEntry.previousElementSibling !== dealAnchor) {
-    dealAnchor.insertAdjacentElement('afterend', dealEntry);
-  }
-
-  const recommendationEntry = recommendationEntries[0];
+  if (dealEntry && dealEntry.previousElementSibling !== dealAnchor) dealAnchor.insertAdjacentElement('afterend', dealEntry);
   const recommendationAnchor = dealEntry || role || profile;
-  if (recommendationEntry && recommendationEntry.previousElementSibling !== recommendationAnchor) {
-    recommendationAnchor.insertAdjacentElement('afterend', recommendationEntry);
-  }
+  if (recommendationEntry && recommendationEntry.previousElementSibling !== recommendationAnchor) recommendationAnchor.insertAdjacentElement('afterend', recommendationEntry);
 }
 
 function isProfileSettings(button: HTMLElement): boolean {
@@ -70,26 +64,18 @@ function triggerFirstTap(button: HTMLElement, event: Event): void {
 function onPointerUp(event: PointerEvent): void {
   const recommendationClose = closest(event.target, '.recommendation-close');
   if (recommendationClose) {
-    event.preventDefault();
-    event.stopPropagation();
-    event.stopImmediatePropagation();
+    event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
     removeOverlay('.recommendation-overlay');
-    suppressTarget = recommendationClose;
-    suppressUntil = performance.now() + 500;
+    suppressTarget = recommendationClose; suppressUntil = performance.now() + 500;
     return;
   }
-
   const dealClose = closest(event.target, '.deal-close');
   if (dealClose) {
-    event.preventDefault();
-    event.stopPropagation();
-    event.stopImmediatePropagation();
+    event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
     removeOverlay('.deal-overlay');
-    suppressTarget = dealClose;
-    suppressUntil = performance.now() + 500;
+    suppressTarget = dealClose; suppressUntil = performance.now() + 500;
     return;
   }
-
   const settings = closest(event.target, '.topbar .icon-button');
   if (settings && isProfileSettings(settings)) triggerFirstTap(settings, event);
 }
@@ -97,26 +83,10 @@ function onPointerUp(event: PointerEvent): void {
 function onClickCapture(event: MouseEvent): void {
   const target = event.target instanceof Element ? event.target : null;
   if (target && suppressTarget && performance.now() < suppressUntil && (target === suppressTarget || suppressTarget.contains(target))) {
-    event.preventDefault();
-    event.stopPropagation();
-    event.stopImmediatePropagation();
-    return;
+    event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation(); return;
   }
-
-  if (closest(event.target, '.recommendation-close')) {
-    event.preventDefault();
-    event.stopPropagation();
-    removeOverlay('.recommendation-overlay');
-    return;
-  }
-
-  if (closest(event.target, '.deal-close')) {
-    event.preventDefault();
-    event.stopPropagation();
-    removeOverlay('.deal-overlay');
-    return;
-  }
-
+  if (closest(event.target, '.recommendation-close')) { event.preventDefault(); event.stopPropagation(); removeOverlay('.recommendation-overlay'); return; }
+  if (closest(event.target, '.deal-close')) { event.preventDefault(); event.stopPropagation(); removeOverlay('.deal-overlay'); return; }
   if (closest(event.target, '.bottom-nav button')) closeAllTransientUi();
 }
 
@@ -126,58 +96,53 @@ function installStyles(): void {
   style.id = 'driply-navigation-repair-styles';
   style.textContent = `
     @media (max-width:600px){
-      html,body,#root{
-        width:100%!important;
-        height:100%!important;
-        min-height:100%!important;
-        overflow:hidden!important;
-      }
-      .app-shell{
-        position:fixed!important;
-        inset:0!important;
-        left:50%!important;
-        transform:translateX(-50%)!important;
+      html,body,#root{width:100%!important;min-height:100%!important}
+      body{overflow-x:hidden!important;overflow-y:auto!important}
+
+      .app-shell:not(.feed-screen){
+        position:relative!important;
+        inset:auto!important;
+        left:auto!important;
         width:min(100%,430px)!important;
-        height:100%!important;
-        min-height:100%!important;
-        max-height:100%!important;
-        padding:0!important;
-        overflow:hidden!important;
+        height:auto!important;
+        min-height:100svh!important;
+        max-height:none!important;
+        margin:0 auto!important;
+        padding:max(16px,env(safe-area-inset-top)) 18px calc(118px + env(safe-area-inset-bottom))!important;
+        overflow:visible!important;
+        transform:none!important;
+        translate:none!important;
+        contain:none!important;
       }
-      .app-shell>.screen-transition{
-        position:absolute!important;
-        inset:0 0 calc(82px + env(safe-area-inset-bottom)) 0!important;
+      .app-shell:not(.feed-screen)>.screen-transition{
+        position:relative!important;
+        inset:auto!important;
         width:100%!important;
         height:auto!important;
         min-height:0!important;
         max-height:none!important;
-        padding:max(16px,env(safe-area-inset-top)) 18px 32px!important;
-        overflow-x:hidden!important;
-        overflow-y:auto!important;
-        -webkit-overflow-scrolling:touch!important;
-        overscroll-behavior-y:contain!important;
+        padding:0!important;
+        overflow:visible!important;
+        transform:none!important;
         touch-action:pan-y!important;
-        scrollbar-width:none!important;
-      }
-      .app-shell>.screen-transition::-webkit-scrollbar{display:none!important}
-      .app-shell.feed-screen>.screen-transition{
-        display:grid!important;
-        grid-template-rows:auto auto minmax(0,1fr) auto!important;
-        overflow:hidden!important;
-        touch-action:none!important;
       }
       .app-shell>.bottom-nav{
-        position:absolute!important;
-        inset:auto 0 0 0!important;
-        width:100%!important;
+        position:fixed!important;
+        top:auto!important;
+        right:auto!important;
+        bottom:0!important;
+        left:50%!important;
+        inset:auto auto 0 50%!important;
+        width:min(100%,430px)!important;
         max-width:430px!important;
         margin:0!important;
-        transform:none!important;
+        transform:translate3d(-50%,0,0)!important;
         translate:none!important;
         animation:none!important;
         z-index:2147483000!important;
+        will-change:transform!important;
       }
-      .screen-transition:has(.profile-head){padding-bottom:40px!important}
+      .screen-transition:has(.profile-head){padding-bottom:16px!important}
       .screen-transition:has(.profile-head) *:not(button):not(input):not(textarea):not(select){touch-action:pan-y!important}
     }
     .profile-market-role{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 14px;padding:14px 16px;border:1px solid #e3dfd8;border-radius:18px;background:#fff;box-shadow:0 8px 24px rgba(17,17,17,.04)}
@@ -192,25 +157,18 @@ export function enableNavigationRepairRuntime(): () => void {
   if (typeof window === 'undefined' || started) return () => undefined;
   started = true;
   installStyles();
-
   let frame = 0;
   const schedule = () => {
     if (frame) return;
-    frame = window.requestAnimationFrame(() => {
-      frame = 0;
-      cleanProfileDom();
-    });
+    frame = window.requestAnimationFrame(() => { frame = 0; cleanProfileDom(); });
   };
-
   const observer = new MutationObserver(schedule);
   observer.observe(document.body, { childList: true, subtree: true });
   document.addEventListener('pointerup', onPointerUp, { capture: true, passive: false });
   document.addEventListener('click', onClickCapture, true);
   schedule();
-
   return () => {
-    started = false;
-    observer.disconnect();
+    started = false; observer.disconnect();
     if (frame) window.cancelAnimationFrame(frame);
     document.removeEventListener('pointerup', onPointerUp, true);
     document.removeEventListener('click', onClickCapture, true);
