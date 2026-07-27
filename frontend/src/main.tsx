@@ -13,6 +13,7 @@ import './styles/reservations.css';
 import './styles/reviews.css';
 import './styles/social.css';
 import './styles/fullscreen-feed.css';
+import './styles/non-feed-header-fix.css';
 
 type BoundaryProps = { children: ReactNode };
 type BoundaryState = { failed: boolean };
