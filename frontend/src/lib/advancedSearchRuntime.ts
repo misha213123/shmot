@@ -37,11 +37,10 @@ async function runSearch(filters: Filters): Promise<SearchResponse> {
 }
 
 function productPreview(product: Product) {
-  const old = document.querySelector('.advanced-product-preview');
-  old?.remove();
+  document.querySelector('.advanced-product-preview')?.remove();
   const layer = document.createElement('div');
   layer.className = 'advanced-product-preview';
-  layer.innerHTML = `<section><button class="advanced-close" aria-label="Закрыть">×</button>${cover(product) ? `<img src="${cover(product)}" alt="${escapeHtml(product.title)}" />` : ''}<span>${escapeHtml(product.brand)}</span><h2>${escapeHtml(product.title)}</h2><strong>${money(product)}</strong><div class="advanced-specs"><b>${escapeHtml(product.size || 'Размер не указан')}</b><b>${escapeHtml(product.condition)}</b><b>${escapeHtml(product.city)}</b></div><p>${escapeHtml(product.description)}</p>${product.delivery ? `<small>Получение: ${escapeHtml(product.delivery)}</small>` : ''}<a href="https://t.me/${escapeHtml(product.seller.username)}" target="_blank" rel="noreferrer">Написать продавцу</a></section>`;
+  layer.innerHTML = `<section><button type="button" class="advanced-close" aria-label="Закрыть">×</button>${cover(product) ? `<img src="${cover(product)}" alt="${escapeHtml(product.title)}" />` : ''}<span>${escapeHtml(product.brand)}</span><h2>${escapeHtml(product.title)}</h2><strong>${money(product)}</strong><div class="advanced-specs"><b>${escapeHtml(product.size || 'Размер не указан')}</b><b>${escapeHtml(product.condition)}</b><b>${escapeHtml(product.city)}</b></div><p>${escapeHtml(product.description)}</p>${product.delivery ? `<small>Получение: ${escapeHtml(product.delivery)}</small>` : ''}<a href="https://t.me/${escapeHtml(product.seller.username)}" target="_blank" rel="noreferrer">Написать продавцу</a></section>`;
   document.body.append(layer);
   layer.querySelector('.advanced-close')?.addEventListener('click', () => layer.remove());
   layer.addEventListener('click', (event) => { if (event.target === layer) layer.remove(); });
@@ -49,7 +48,7 @@ function productPreview(product: Product) {
 
 function renderResults(root: HTMLElement, response: SearchResponse) {
   const target = root.querySelector('.advanced-results') as HTMLElement;
-  target.innerHTML = `<div class="advanced-result-head"><b>Найдено: ${response.total}</b><span>${response.items.length} показано</span></div>${response.items.length ? `<div class="advanced-result-grid">${response.items.map((product) => `<button data-product="${product.id}">${cover(product) ? `<img src="${cover(product)}" alt="" />` : '<i>Нет фото</i>'}<span>${escapeHtml(product.brand)}</span><b>${escapeHtml(product.title)}</b><strong>${money(product)}</strong><small>${escapeHtml(product.city)} · @${escapeHtml(product.seller.username)}</small></button>`).join('')}</div>` : '<div class="advanced-empty"><b>Товары не найдены</b><p>Измени или сбрось часть фильтров.</p></div>'}`;
+  target.innerHTML = `<div class="advanced-result-head"><b>Найдено: ${response.total}</b><span>${response.items.length} показано</span></div>${response.items.length ? `<div class="advanced-result-grid">${response.items.map((product) => `<button type="button" data-product="${product.id}">${cover(product) ? `<img src="${cover(product)}" alt="" />` : '<i>Нет фото</i>'}<span>${escapeHtml(product.brand)}</span><b>${escapeHtml(product.title)}</b><strong>${money(product)}</strong><small>${escapeHtml(product.city)} · @${escapeHtml(product.seller.username)}</small></button>`).join('')}</div>` : '<div class="advanced-empty"><b>Товары не найдены</b><p>Измени или сбрось часть фильтров.</p></div>'}`;
   target.querySelectorAll<HTMLElement>('[data-product]').forEach((button) => {
     const product = response.items.find((item) => item.id === button.dataset.product);
     if (product) button.onclick = () => productPreview(product);
@@ -62,7 +61,7 @@ async function openAdvancedSearch(initialQuery = '') {
   if (initialQuery) values.q = initialQuery;
   const overlay = document.createElement('div');
   overlay.className = 'advanced-search-overlay';
-  overlay.innerHTML = `<section class="advanced-search-sheet"><header><div><span>DRIPLY SEARCH</span><h2>Поиск и фильтры</h2></div><button class="advanced-close" aria-label="Закрыть">×</button></header><form class="advanced-form"><label class="advanced-wide">Что ищем<input name="q" value="${escapeHtml(values.q)}" placeholder="Nike, худи, кроссовки или @продавец" /></label><label>Страна<select name="country"><option value="">Все</option><option value="RU">Россия</option><option value="BY">Беларусь</option><option value="KZ">Казахстан</option><option value="UA">Украина</option><option value="AM">Армения</option><option value="GE">Грузия</option></select></label><label>Город<input name="city" value="${escapeHtml(values.city)}" placeholder="Минск" /></label><label>Категория<select name="category"><option value="">Все категории</option><option>Кроссовки</option><option>Куртки</option><option>Худи</option><option>Футболки</option><option>Брюки</option><option>Аксессуары</option></select></label><label>Бренд<input name="brand" value="${escapeHtml(values.brand)}" placeholder="Nike" /></label><label>Размер<input name="size" value="${escapeHtml(values.size)}" placeholder="M, 42, 9 US" /></label><label>Состояние<select name="condition"><option value="">Любое</option><option>Новое</option><option>Как новое</option><option>Хорошее</option><option>Есть следы носки</option></select></label><label>Цена от<input name="min_price" inputmode="decimal" type="number" min="0" value="${escapeHtml(values.min_price)}" /></label><label>Цена до<input name="max_price" inputmode="decimal" type="number" min="0" value="${escapeHtml(values.max_price)}" /></label><label>Валюта<select name="currency"><option value="">Любая</option><option>RUB</option><option>BYN</option><option>KZT</option><option>UAH</option><option>AMD</option><option>GEL</option></select></label><label>Получение<select name="delivery"><option value="">Любое</option><option value="shipping">Отправка</option><option value="meeting">Личная встреча</option><option value="both">Оба варианта</option></select></label><label class="advanced-wide">Сортировка<select name="sort"><option value="newest">Сначала новые</option><option value="price_asc">Сначала дешевле</option><option value="price_desc">Сначала дороже</option><option value="popular">Популярные</option></select></label><div class="advanced-actions advanced-wide"><button type="button" class="advanced-reset">Сбросить</button><button type="submit">Показать товары</button></div></form><div class="advanced-results"></div></section>`;
+  overlay.innerHTML = `<section class="advanced-search-sheet"><header><div><span>DRIPLY SEARCH</span><h2>Поиск и фильтры</h2></div><button type="button" class="advanced-close" aria-label="Закрыть">×</button></header><form class="advanced-form"><label class="advanced-wide">Что ищем<input name="q" value="${escapeHtml(values.q)}" placeholder="Nike, худи, кроссовки или @продавец" /></label><label>Страна<select name="country"><option value="">Все</option><option value="RU">Россия</option><option value="BY">Беларусь</option><option value="KZ">Казахстан</option><option value="UA">Украина</option><option value="AM">Армения</option><option value="GE">Грузия</option></select></label><label>Город<input name="city" value="${escapeHtml(values.city)}" placeholder="Минск" /></label><label>Категория<select name="category"><option value="">Все категории</option><option>Кроссовки</option><option>Куртки</option><option>Худи</option><option>Футболки</option><option>Брюки</option><option>Аксессуары</option></select></label><label>Бренд<input name="brand" value="${escapeHtml(values.brand)}" placeholder="Nike" /></label><label>Размер<input name="size" value="${escapeHtml(values.size)}" placeholder="M, 42, 9 US" /></label><label>Состояние<select name="condition"><option value="">Любое</option><option>Новое</option><option>Как новое</option><option>Хорошее</option><option>Есть следы носки</option></select></label><label>Цена от<input name="min_price" inputmode="decimal" type="number" min="0" value="${escapeHtml(values.min_price)}" /></label><label>Цена до<input name="max_price" inputmode="decimal" type="number" min="0" value="${escapeHtml(values.max_price)}" /></label><label>Валюта<select name="currency"><option value="">Любая</option><option>RUB</option><option>BYN</option><option>KZT</option><option>UAH</option><option>AMD</option><option>GEL</option></select></label><label>Получение<select name="delivery"><option value="">Любое</option><option value="shipping">Отправка</option><option value="meeting">Личная встреча</option><option value="both">Оба варианта</option></select></label><label class="advanced-wide">Сортировка<select name="sort"><option value="newest">Сначала новые</option><option value="price_asc">Сначала дешевле</option><option value="price_desc">Сначала дороже</option><option value="popular">Популярные</option></select></label><div class="advanced-actions advanced-wide"><button type="button" class="advanced-reset">Сбросить</button><button type="submit">Показать товары</button></div></form><div class="advanced-results"></div></section>`;
   document.body.append(overlay);
   (overlay.querySelector(`[name="country"]`) as HTMLSelectElement).value = values.country;
   (overlay.querySelector(`[name="category"]`) as HTMLSelectElement).value = values.category;
@@ -72,7 +71,7 @@ async function openAdvancedSearch(initialQuery = '') {
   (overlay.querySelector(`[name="sort"]`) as HTMLSelectElement).value = values.sort;
   overlay.querySelector('.advanced-close')?.addEventListener('click', closeSearch);
   overlay.addEventListener('click', (event) => { if (event.target === overlay) closeSearch(); });
-  overlay.querySelector('.advanced-reset')?.addEventListener('click', () => { localStorage.removeItem(STORAGE_KEY); closeSearch(); openAdvancedSearch(); });
+  overlay.querySelector('.advanced-reset')?.addEventListener('click', () => { localStorage.removeItem(STORAGE_KEY); closeSearch(); void openAdvancedSearch(); });
   const form = overlay.querySelector('form') as HTMLFormElement;
   form.onsubmit = async (event) => {
     event.preventDefault();
@@ -92,25 +91,25 @@ async function openAdvancedSearch(initialQuery = '') {
   form.requestSubmit();
 }
 
-function injectButtons() {
-  document.querySelectorAll<HTMLElement>('.topbar').forEach((topbar) => {
-    const buttons = topbar.querySelectorAll<HTMLButtonElement>('button');
-    const last = buttons.item(buttons.length - 1);
-    if (!last || last.dataset.advancedSearch === '1' || topbar.querySelector('.brand strong')?.textContent?.trim() === 'Профиль') return;
-    last.dataset.advancedSearch = '1';
-    last.addEventListener('click', (event) => { event.preventDefault(); event.stopImmediatePropagation(); openAdvancedSearch(); }, true);
+function injectButton() {
+  document.querySelectorAll('.advanced-search-trigger').forEach((button) => {
+    if (!button.closest('.search-box')) button.remove();
   });
-  const searchBox = document.querySelector('.search-box');
-  if (searchBox && !searchBox.querySelector('.advanced-search-trigger')) {
-    const button = document.createElement('button'); button.type = 'button'; button.className = 'advanced-search-trigger'; button.textContent = 'Фильтры';
-    button.onclick = () => openAdvancedSearch((searchBox.querySelector('input') as HTMLInputElement)?.value || '');
-    searchBox.append(button);
-  }
+
+  const searchBox = document.querySelector<HTMLElement>('.search-box');
+  if (!searchBox || searchBox.querySelector('.advanced-search-trigger')) return;
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'advanced-search-trigger';
+  button.textContent = 'Фильтры';
+  button.setAttribute('aria-label', 'Открыть фильтры');
+  button.onclick = () => void openAdvancedSearch(searchBox.querySelector<HTMLInputElement>('input')?.value || '');
+  searchBox.append(button);
 }
 
 export function enableAdvancedSearchRuntime(): void {
   if (typeof window === 'undefined') return;
-  const observer = new MutationObserver(injectButtons);
+  const observer = new MutationObserver(injectButton);
   observer.observe(document.body, { childList: true, subtree: true });
-  injectButtons();
+  injectButton();
 }
