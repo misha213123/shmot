@@ -14,27 +14,38 @@ function installStyles(): void {
     @media(max-width:600px){
       html,body,#root{
         width:100%!important;
-        height:100%!important;
         min-height:100%!important;
+        margin:0!important;
+      }
+      body{
         overflow:hidden!important;
       }
       .app-shell{
         position:fixed!important;
-        inset:0!important;
+        top:0!important;
+        right:0!important;
+        bottom:0!important;
+        left:0!important;
         width:min(100%,430px)!important;
-        height:100dvh!important;
-        min-height:100dvh!important;
-        max-height:100dvh!important;
+        height:auto!important;
+        min-height:0!important;
+        max-height:none!important;
         margin:0 auto!important;
         padding:0!important;
         overflow:hidden!important;
         transform:none!important;
+        translate:none!important;
+        filter:none!important;
+        perspective:none!important;
         contain:none!important;
       }
-      /* Content scrolls in its own layer. Navigation never participates in that scroll. */
+      /* Контент прокручивается отдельно, панель всегда остается у нижнего края экрана. */
       .app-shell .screen-transition{
         position:absolute!important;
-        inset:0 0 calc(82px + env(safe-area-inset-bottom)) 0!important;
+        top:0!important;
+        right:0!important;
+        bottom:calc(82px + env(safe-area-inset-bottom))!important;
+        left:0!important;
         width:100%!important;
         height:auto!important;
         min-height:0!important;
@@ -53,11 +64,12 @@ function installStyles(): void {
       }
       .app-shell .bottom-nav{
         position:absolute!important;
-        inset:auto 0 0 0!important;
-        left:0!important;
-        right:0!important;
         top:auto!important;
+        right:0!important;
         bottom:0!important;
+        left:0!important;
+        inset-block-start:auto!important;
+        inset-block-end:0!important;
         width:100%!important;
         max-width:430px!important;
         margin:0 auto!important;
