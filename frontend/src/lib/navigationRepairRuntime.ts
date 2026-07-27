@@ -18,20 +18,27 @@ function closeAllTransientUi(): void {
 }
 
 function cleanProfileDom(): void {
-  const profile = document.querySelector('.profile-head');
+  const profile = document.querySelector<HTMLElement>('.profile-head');
+  const roles = Array.from(document.querySelectorAll<HTMLElement>('.profile-market-role'));
   const dealEntries = Array.from(document.querySelectorAll<HTMLElement>('.deal-center-button'));
   const recommendationEntries = Array.from(document.querySelectorAll<HTMLElement>('.recommendation-profile-actions'));
 
   if (!profile) {
+    roles.forEach((entry) => entry.remove());
     dealEntries.forEach((entry) => entry.remove());
     recommendationEntries.forEach((entry) => entry.remove());
     return;
   }
 
+  const role = roles[0];
+  roles.slice(1).forEach((entry) => entry.remove());
   dealEntries.slice(1).forEach((entry) => entry.remove());
   recommendationEntries.slice(1).forEach((entry) => entry.remove());
 
-  const role = document.querySelector<HTMLElement>('.profile-market-role');
+  if (role && role.previousElementSibling !== profile) {
+    profile.insertAdjacentElement('afterend', role);
+  }
+
   const dealEntry = dealEntries[0];
   const dealAnchor = role || profile;
   if (dealEntry && dealEntry.previousElementSibling !== dealAnchor) {
@@ -84,9 +91,7 @@ function onPointerUp(event: PointerEvent): void {
   }
 
   const settings = closest(event.target, '.topbar .icon-button');
-  if (settings && isProfileSettings(settings)) {
-    triggerFirstTap(settings, event);
-  }
+  if (settings && isProfileSettings(settings)) triggerFirstTap(settings, event);
 }
 
 function onClickCapture(event: MouseEvent): void {
@@ -112,9 +117,7 @@ function onClickCapture(event: MouseEvent): void {
     return;
   }
 
-  if (closest(event.target, '.bottom-nav button')) {
-    closeAllTransientUi();
-  }
+  if (closest(event.target, '.bottom-nav button')) closeAllTransientUi();
 }
 
 function installStyles(): void {
@@ -123,49 +126,63 @@ function installStyles(): void {
   style.id = 'driply-navigation-repair-styles';
   style.textContent = `
     @media (max-width:600px){
-      .app-shell:not(.feed-screen){
+      html,body,#root{
+        width:100%!important;
+        height:100%!important;
+        min-height:100%!important;
+        overflow:hidden!important;
+      }
+      .app-shell{
         position:fixed!important;
         inset:0!important;
         left:50%!important;
         transform:translateX(-50%)!important;
         width:min(100%,430px)!important;
-        height:100dvh!important;
-        min-height:0!important;
-        max-height:100dvh!important;
-        overflow-x:hidden!important;
-        overflow-y:scroll!important;
-        -webkit-overflow-scrolling:touch!important;
-        touch-action:pan-y!important;
-        overscroll-behavior-y:contain!important;
-        scrollbar-width:none!important;
-        padding-bottom:calc(112px + env(safe-area-inset-bottom))!important;
+        height:100%!important;
+        min-height:100%!important;
+        max-height:100%!important;
+        padding:0!important;
+        overflow:hidden!important;
       }
-      .app-shell:not(.feed-screen)::-webkit-scrollbar{display:none!important}
-      .app-shell:not(.feed-screen)>.screen-transition{
-        display:block!important;
-        position:relative!important;
+      .app-shell>.screen-transition{
+        position:absolute!important;
+        inset:0 0 calc(82px + env(safe-area-inset-bottom)) 0!important;
         width:100%!important;
         height:auto!important;
-        min-height:calc(100dvh + 1px)!important;
+        min-height:0!important;
         max-height:none!important;
-        overflow:visible!important;
+        padding:max(16px,env(safe-area-inset-top)) 18px 32px!important;
+        overflow-x:hidden!important;
+        overflow-y:auto!important;
+        -webkit-overflow-scrolling:touch!important;
+        overscroll-behavior-y:contain!important;
         touch-action:pan-y!important;
-        padding-bottom:calc(150px + env(safe-area-inset-bottom))!important;
+        scrollbar-width:none!important;
       }
-      .screen-transition:has(.profile-head){
-        height:auto!important;
-        min-height:calc(100dvh + 180px)!important;
-        max-height:none!important;
-        overflow:visible!important;
-        touch-action:pan-y!important;
-        padding-bottom:calc(180px + env(safe-area-inset-bottom))!important;
+      .app-shell>.screen-transition::-webkit-scrollbar{display:none!important}
+      .app-shell.feed-screen>.screen-transition{
+        display:grid!important;
+        grid-template-rows:auto auto minmax(0,1fr) auto!important;
+        overflow:hidden!important;
+        touch-action:none!important;
       }
+      .app-shell>.bottom-nav{
+        position:absolute!important;
+        inset:auto 0 0 0!important;
+        width:100%!important;
+        max-width:430px!important;
+        margin:0!important;
+        transform:none!important;
+        translate:none!important;
+        animation:none!important;
+        z-index:2147483000!important;
+      }
+      .screen-transition:has(.profile-head){padding-bottom:40px!important}
       .screen-transition:has(.profile-head) *:not(button):not(input):not(textarea):not(select){touch-action:pan-y!important}
     }
     .profile-market-role{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 14px;padding:14px 16px;border:1px solid #e3dfd8;border-radius:18px;background:#fff;box-shadow:0 8px 24px rgba(17,17,17,.04)}
     .profile-market-role div{display:grid;gap:3px}.profile-market-role b{font-size:14px}.profile-market-role small{color:#77736d;font-size:12px}.profile-market-role span{padding:8px 11px;border-radius:999px;background:#111;color:#fff;font-size:11px;font-weight:850;white-space:nowrap}
-    .deal-center-button+.deal-center-button{display:none!important}
-    .recommendation-profile-actions+.recommendation-profile-actions{display:none!important}
+    .profile-market-role~.profile-market-role,.deal-center-button~.deal-center-button,.recommendation-profile-actions~.recommendation-profile-actions{display:none!important}
     .recommendation-close,.deal-close,.feed-notification-close{touch-action:manipulation!important;pointer-events:auto!important;z-index:20!important}
   `;
   document.head.append(style);
