@@ -1,6 +1,9 @@
+import '../styles/profile-avatar.css';
+
 type CachedProfile = {
   username?: string | null;
   display_name?: string | null;
+  avatar_url?: string | null;
   city?: string | null;
   country_code?: string | null;
   bio?: string | null;
@@ -40,6 +43,25 @@ function ensureMarketRole(profileHead: HTMLElement, profile: CachedProfile): voi
   block.innerHTML = `<div><b>Покупатель и продавец</b><small>${rating > 0 ? `Рейтинг ${rating.toFixed(1)} · ` : ''}Можно покупать, продавать и принимать предложения цены</small></div><span>DRIPLY USER</span>`;
 }
 
+function syncAvatar(avatar: HTMLElement, profile: CachedProfile, fallback: string): void {
+  const avatarUrl = profile.avatar_url?.trim();
+
+  if (!avatarUrl) {
+    avatar.replaceChildren(document.createTextNode(fallback));
+    return;
+  }
+
+  let image = avatar.querySelector<HTMLImageElement>('img.profile-avatar-image');
+  if (!image) {
+    image = document.createElement('img');
+    image.className = 'profile-avatar-image';
+    image.alt = 'Фото профиля';
+    avatar.replaceChildren(image);
+  }
+
+  if (image.src !== avatarUrl) image.src = avatarUrl;
+}
+
 function syncProfileUi(): void {
   const profile = readLatestProfile();
   if (!profile) return;
@@ -57,7 +79,7 @@ function syncProfileUi(): void {
     const title = profileHead.querySelector<HTMLElement>('h2');
     const subtitle = profileHead.querySelector<HTMLElement>('p');
 
-    if (avatar) avatar.textContent = initial;
+    if (avatar) syncAvatar(avatar, profile, initial);
     if (title) title.textContent = `@${username}`;
     if (subtitle) subtitle.textContent = location;
     ensureMarketRole(profileHead, profile);
