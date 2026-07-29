@@ -100,7 +100,9 @@ export const api = {
     const search = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => { if (value !== undefined && value !== '') search.set(key, String(value)); });
     const suffix = search.size ? `?${search}` : '';
-    return cachedRequest(`products:${suffix}`, () => request<ProductListResponse>(`/api/v1/products${suffix}`));
+    // Product collections must be fresh: MarketplaceApp already has an instant local feed cache,
+    // while returning the API cache here could overwrite a newly published product with stale data.
+    return request<ProductListResponse>(`/api/v1/products${suffix}`);
   },
   product: (productId: string) => cachedRequest(`product:${productId}`, () => request<ApiProduct>(`/api/v1/products/${productId}`)),
   profile: (profileId: string) => cachedRequest(`profile:${profileId}`, () => request<ApiProfile>(`/api/v1/profiles/${profileId}`)),
