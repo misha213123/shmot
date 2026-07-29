@@ -148,3 +148,91 @@
     height: 54px;
   }
 }
+
+/* One bottom navigation implementation for Safari, Chrome, Firefox,
+   Android WebView, Telegram WebView and desktop browsers. */
+:root {
+  --bottom-nav-base-height: 74px;
+  --bottom-nav-safe-area: env(safe-area-inset-bottom, 0px);
+  --bottom-nav-total-height: calc(var(--bottom-nav-base-height) + var(--bottom-nav-safe-area));
+}
+
+.bottom-nav {
+  position: fixed !important;
+  inset-inline: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  transform: none !important;
+  width: 100% !important;
+  max-width: 430px;
+  min-height: var(--bottom-nav-total-height);
+  margin-inline: auto;
+  padding: 10px 12px calc(10px + var(--bottom-nav-safe-area)) !important;
+  z-index: 1000 !important;
+  box-sizing: border-box;
+  isolation: isolate;
+  background: rgba(251, 250, 248, 0.96) !important;
+  border-top: 1px solid rgba(20, 18, 15, 0.1);
+  box-shadow: 0 -8px 28px rgba(20, 18, 15, 0.08);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.app-shell {
+  padding-bottom: calc(var(--bottom-nav-total-height) + 18px) !important;
+}
+
+.app-shell:not(.feed-screen) .screen-transition {
+  padding-bottom: calc(var(--bottom-nav-total-height) + 24px) !important;
+}
+
+.app-shell.feed-screen {
+  padding-bottom: var(--bottom-nav-total-height) !important;
+}
+
+.bottom-nav button {
+  min-width: 0;
+  min-height: 48px;
+  touch-action: manipulation;
+}
+
+@supports not (height: 100dvh) {
+  .app-shell {
+    height: 100vh;
+    max-height: 100vh;
+  }
+
+  .app-shell.feed-screen {
+    height: 100vh !important;
+    min-height: 100vh !important;
+    max-height: 100vh !important;
+  }
+}
+
+@media (min-width: 601px) {
+  .bottom-nav {
+    border-left: 1px solid rgba(20, 18, 15, 0.08);
+    border-right: 1px solid rgba(20, 18, 15, 0.08);
+    border-radius: 18px 18px 0 0;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  :root {
+    --bottom-nav-base-height: 62px;
+  }
+
+  .bottom-nav {
+    padding-top: 6px !important;
+    padding-bottom: calc(6px + var(--bottom-nav-safe-area)) !important;
+  }
+
+  .bottom-nav button {
+    min-height: 42px;
+  }
+
+  .bottom-nav span {
+    font-size: 9px;
+  }
+}
