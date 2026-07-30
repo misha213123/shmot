@@ -1,10 +1,22 @@
-import { API_URL } from './api';
 import { auth } from './auth';
+import { API_URL } from './api';
 
 type AdminAccess = { is_admin: boolean; is_owner: boolean; username: string };
 
+const CACHE_KEY = 'driply.admin-access.v1';
 let started = false;
 let isAdmin = false;
+
+function readCachedAccess(): boolean {
+  try {
+    const value = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null') as { isAdmin?: boolean } | null;
+    return Boolean(value?.isAdmin);
+  } catch { return false; }
+}
+
+function cacheAccess(value: boolean): void {
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ isAdmin: value, savedAt: Date.now() })); } catch { /* ignore */ }
+}
 
 function installStyles(): void {
   if (document.getElementById('driply-admin-navigation-styles')) return;
@@ -34,6 +46,11 @@ function addAdminButton(): void {
   nav.append(button);
 }
 
+function removeAdminButton(): void {
+  document.querySelector('.admin-nav-button')?.remove();
+  document.querySelector('.bottom-nav')?.classList.remove('has-admin-nav');
+}
+
 async function checkAccess(): Promise<void> {
   const token = await auth.accessToken();
   if (!token) return;
@@ -41,13 +58,16 @@ async function checkAccess(): Promise<void> {
   if (!response.ok) return;
   const data = await response.json() as AdminAccess;
   isAdmin = data.is_admin;
-  addAdminButton();
+  cacheAccess(isAdmin);
+  if (isAdmin) addAdminButton(); else removeAdminButton();
 }
 
 export function enableAdminNavigationRuntime(): () => void {
   if (typeof window === 'undefined' || started) return () => undefined;
   started = true;
   installStyles();
+  isAdmin = readCachedAccess();
+  if (isAdmin) addAdminButton();
   void checkAccess().catch(() => undefined);
   const observer = new MutationObserver(() => addAdminButton());
   observer.observe(document.body, { childList: true, subtree: true });
