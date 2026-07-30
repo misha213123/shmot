@@ -20,7 +20,13 @@ function escapeHtml(value: string) {
   return value.replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char] || char));
 }
 
-function close() { document.querySelector('.recommendation-overlay')?.remove(); }
+function close(event?: Event) {
+  event?.preventDefault();
+  event?.stopPropagation();
+  document.querySelectorAll('.recommendation-overlay').forEach((overlay) => overlay.remove());
+  document.documentElement.classList.remove('recommendation-open');
+  document.body.style.removeProperty('overflow');
+}
 
 function productCard(product: ApiProduct) {
   return `<button type="button" class="recommendation-card" data-product-id="${product.id}">
@@ -43,9 +49,13 @@ function openCollection(title: string, subtitle: string, products: ApiProduct[])
     <p>${escapeHtml(subtitle)}</p>
     <div class="recommendation-grid">${products.map(productCard).join('') || '<div class="recommendation-empty">Пока недостаточно данных. Продолжай смотреть и лайкать товары.</div>'}</div>
   </section>`;
+  document.documentElement.classList.add('recommendation-open');
+  document.body.style.overflow = 'hidden';
   document.body.append(overlay);
-  overlay.querySelector('.recommendation-close')?.addEventListener('click', close);
-  overlay.addEventListener('click', (event) => { if (event.target === overlay) close(); });
+  const closeButton = overlay.querySelector<HTMLButtonElement>('.recommendation-close');
+  closeButton?.addEventListener('pointerup', close, { passive: false });
+  closeButton?.addEventListener('click', close);
+  overlay.addEventListener('click', (event) => { if (event.target === overlay) close(event); });
   overlay.querySelectorAll<HTMLElement>('[data-product-id]').forEach((button) => {
     button.onclick = () => {
       const productId = button.dataset.productId;
@@ -134,12 +144,6 @@ function injectProfileCollections() {
   profile.insertAdjacentElement('afterend', block);
   block.querySelectorAll<HTMLElement>('[data-rec]').forEach((button) => {
     button.addEventListener('click', () => activateCollectionButton(button));
-    button.addEventListener('pointerup', (event) => {
-      if (event.pointerType === 'touch') {
-        event.preventDefault();
-        activateCollectionButton(button);
-      }
-    }, { passive: false });
   });
   updateProfileCounts();
 }
