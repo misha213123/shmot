@@ -15,44 +15,32 @@ async function warmChats(): Promise<void> {
   }
 }
 
-function openMessagesPanel(): void {
-  const realTopbarButton = document.querySelector<HTMLButtonElement>('.topbar button:first-child');
-  if (realTopbarButton) {
-    realTopbarButton.click();
-    return;
+function clickSyntheticContact(productId: string): void {
+  if (productId) {
+    window.dispatchEvent(new CustomEvent('driply:prepare-chat-product', { detail: { productId } }));
   }
 
-  const fakeTopbar = document.createElement('div');
-  fakeTopbar.className = 'topbar';
-  fakeTopbar.style.display = 'none';
-  fakeTopbar.innerHTML = '<button type="button"></button><div class="brand"><strong>DRIPLY</strong></div>';
-  document.body.append(fakeTopbar);
-  fakeTopbar.querySelector<HTMLButtonElement>('button')?.click();
-  fakeTopbar.remove();
+  const trigger = document.createElement('button');
+  trigger.type = 'button';
+  trigger.textContent = 'Связаться с продавцом';
+  trigger.style.display = 'none';
+  document.body.append(trigger);
+  trigger.click();
+  trigger.remove();
 }
 
-function clickLatestConversation(attempt = 0): void {
-  const row = document.querySelector<HTMLButtonElement>('.conversation-list .conversation-row');
-  if (row) {
-    row.click();
-    return;
-  }
-  if (attempt >= 40) return;
-  window.setTimeout(() => clickLatestConversation(attempt + 1), 100);
-}
-
-async function openChatFromNotification(): Promise<void> {
+async function openChatFromNotification(event: Event): Promise<void> {
+  const detail = (event as CustomEvent<{ productId?: string }>).detail;
   await warmChats();
-  openMessagesPanel();
-  clickLatestConversation();
+  clickSyntheticContact(detail?.productId || '');
 }
 
 export function enableNotificationChatBridge(): void {
   if (enabled || typeof window === 'undefined') return;
   enabled = true;
   void warmChats();
-  window.addEventListener('driply:open-chat-for-product', () => {
-    void openChatFromNotification();
+  window.addEventListener('driply:open-chat-for-product', (event) => {
+    void openChatFromNotification(event);
   });
   window.addEventListener('focus', () => void warmChats());
 }
