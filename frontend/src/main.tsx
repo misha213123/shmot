@@ -101,6 +101,8 @@ async function enableOptionalRuntimes(): Promise<void> {
     async () => (await import('./lib/feedChromeRuntime')).enableFeedChromeRuntime(),
     async () => (await import('./lib/instantMarketplaceCache')).enableInstantMarketplaceCache(),
     async () => (await import('./lib/removeFeedLoadingText')).enableFeedLoadingCleanup(),
+    async () => (await import('./lib/emptyFeedRuntime')).enableEmptyFeedRuntime(),
+    async () => (await import('./lib/notificationRuntime')).enableNotificationRuntime(),
     async () => (await import('./lib/productEditDomSync')).enableProductEditDomSync(),
     async () => (await import('./lib/chatProductContextRuntime')).enableChatProductContextRuntime(),
     async () => (await import('./lib/chatRuntime')).enableChatRuntime(),
