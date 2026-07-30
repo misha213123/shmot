@@ -17,7 +17,7 @@ function formatTime(value: string): string {
 }
 
 function iconFor(type: string): string {
-  if (/message|chat/i.test(type)) return '💬';
+  if (/message|chat|system/i.test(type)) return '💬';
   if (/offer|price/i.test(type)) return '₽';
   if (/favorite|like/i.test(type)) return '♡';
   if (/deal|reservation/i.test(type)) return '↔';
@@ -123,9 +123,15 @@ export function enableNotificationRuntime(): void {
   if (enabled || typeof window === 'undefined') return;
   enabled = true;
   document.addEventListener('click', handleClick, true);
+  window.addEventListener('driply:open-notifications', () => void openCenter());
+  window.addEventListener('driply:notifications-refresh', () => void refreshBadge());
+  window.addEventListener('focus', () => void refreshBadge());
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') void refreshBadge();
+  });
   const observer = new MutationObserver(updateBadges);
   observer.observe(document.body, { childList: true, subtree: true });
   void refreshBadge();
-  pollTimer = window.setInterval(() => void refreshBadge(), 15000);
+  pollTimer = window.setInterval(() => void refreshBadge(), 5000);
   window.addEventListener('beforeunload', () => { if (pollTimer) window.clearInterval(pollTimer); }, { once: true });
 }
