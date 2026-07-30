@@ -15,6 +15,7 @@ type Props = {
   onTabChange: (tab: ProfileTab) => void;
   onCreateProduct: () => void;
   onSettings: () => void;
+  onDeals: () => void;
   onBack: () => void;
   onNotifications: () => void;
   onFilters: () => void;
@@ -34,6 +35,7 @@ export default function ProfileScreen({
   onTabChange,
   onCreateProduct,
   onSettings,
+  onDeals,
   onBack,
   onNotifications,
   onFilters,
@@ -59,6 +61,12 @@ export default function ProfileScreen({
         <p>{location}</p>
         {profile.bio && <small>{profile.bio}</small>}
       </section>
+
+      <button type="button" className="deal-center-button" onClick={onDeals}>
+        <span>⇄</span>
+        <b>Мои покупки и продажи</b>
+        <small>Предложения цены и статусы сделок</small>
+      </button>
 
       <nav className="profile-product-tabs motion-tabs" aria-label="Товары профиля">
         <button type="button" className={activeTab === 'active' ? 'active' : ''} onClick={() => onTabChange('active')}>Активные</button>
