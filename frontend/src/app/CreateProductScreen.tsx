@@ -76,13 +76,25 @@ export default function CreateProductScreen({ profile, onBack, onCreated }: Prop
     });
   };
 
+  const getAuthenticatedUserId = async () => {
+    const { data: refreshed } = await supabase.auth.refreshSession();
+    const refreshedSession = refreshed.session;
+    if (refreshedSession?.user.id) return refreshedSession.user.id;
+
+    const { data } = await supabase.auth.getSession();
+    const userId = data.session?.user.id;
+    if (!userId) throw new Error('Сессия истекла. Войди в аккаунт заново.');
+    return userId;
+  };
+
   const uploadImages = async () => {
     const uploaded: Array<{ url: string; position: number; is_cover: boolean }> = [];
+    const ownerId = await getAuthenticatedUserId();
 
     for (let index = 0; index < images.length; index += 1) {
       const image = images[index];
       const extension = image.file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
-      const path = `${profile.id}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
+      const path = `${ownerId}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
 
       const { error: uploadError } = await supabase.storage
         .from(STORAGE_BUCKET)
@@ -96,9 +108,11 @@ export default function CreateProductScreen({ profile, onBack, onCreated }: Prop
         console.error('DRIPLY product image upload failed', {
           bucket: STORAGE_BUCKET,
           path,
+          authenticatedUserId: ownerId,
+          profileId: profile.id,
           message: uploadError.message,
         });
-        throw new Error('Не удалось загрузить фотографии. Проверь интернет и попробуй ещё раз.');
+        throw new Error('Не удалось загрузить фотографии. Попробуй выйти из аккаунта, войти снова и повторить загрузку.');
       }
 
       const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
