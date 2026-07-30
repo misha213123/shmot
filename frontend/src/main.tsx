@@ -96,6 +96,7 @@ type OptionalRuntime = () => Promise<OptionalRuntimeResult>;
 async function enableOptionalRuntimes(): Promise<void> {
   if (isAdminRoute) return;
   const runtimes: OptionalRuntime[] = [
+    async () => (await import('./lib/appWarmupRuntime')).enableAppWarmupRuntime(),
     async () => (await import('./lib/mobileInteractionRuntime')).enableMobileInteractionRuntime(),
     async () => (await import('./lib/iosSwipeRuntime')).enableIosSwipeRuntime(),
     async () => (await import('./lib/feedChromeRuntime')).enableFeedChromeRuntime(),
