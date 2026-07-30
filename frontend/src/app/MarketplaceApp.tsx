@@ -1,19 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Archive, Bell, CheckCircle2, ChevronLeft, Heart, Home, MessageCircle, Phone, Plus, Search, Settings, SlidersHorizontal, Trash2, User, X } from 'lucide-react';
+import { Archive, CheckCircle2, Heart, MessageCircle, Phone, Search, Trash2, X } from 'lucide-react';
 
 import CreateProductScreen from './CreateProductScreen';
 import { api, type ApiProduct, type ApiProfile, type ProductStatus } from '../lib/api';
+import AppHeader from '../shared/navigation/AppHeader';
+import BottomNavigation, { type MainScreen } from '../shared/navigation/BottomNavigation';
 import '../styles/gestures.css';
 import '../styles/stability.css';
 import '../styles/gallery.css';
 import '../styles/seller-profile.css';
 import '../styles/product-management.css';
 
-type Screen = 'feed' | 'explore' | 'create' | 'likes' | 'profile' | 'seller' | 'product' | 'messages' | 'filters';
+type Screen = MainScreen | 'seller' | 'product' | 'messages' | 'filters';
 type ProfileTab = 'active' | 'sold' | 'archived';
 type Props = { profile: ApiProfile };
 
-const FEED_CACHE_KEY = 'driply.marketplace.feed.v1';
+const FEED_CACHE_PREFIX = 'driply.marketplace.feed.v2.';
 const REQUEST_TIMEOUT_MS = 8000;
 const countryNames: Record<string, string> = { RU: 'Россия', BY: 'Беларусь', KZ: 'Казахстан', UA: 'Украина', AM: 'Армения', GE: 'Грузия' };
 const currencySymbols: Record<string, string> = { RUB: '₽', BYN: 'Br', KZT: '₸', UAH: '₴', AMD: '֏', GEL: '₾' };
@@ -27,15 +29,16 @@ function formatPrice(product: ApiProduct) {
 function orderedImages(product: ApiProduct) { return [...product.images].sort((a, b) => a.position - b.position); }
 function cover(product: ApiProduct) { return orderedImages(product)[0]?.url || ''; }
 function initials(name: string) { return (name || 'U').trim().slice(0, 1).toUpperCase(); }
-function readCachedFeed(): ApiProduct[] {
+function feedCacheKey(userId: string) { return `${FEED_CACHE_PREFIX}${userId}`; }
+function readCachedFeed(userId: string): ApiProduct[] {
   try {
-    const value = localStorage.getItem(FEED_CACHE_KEY);
+    const value = localStorage.getItem(feedCacheKey(userId));
     const parsed = value ? JSON.parse(value) : [];
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed.filter((item) => item?.seller_id !== userId) : [];
   } catch { return []; }
 }
-function cacheFeed(items: ApiProduct[]) {
-  try { localStorage.setItem(FEED_CACHE_KEY, JSON.stringify(items)); } catch { /* ignore */ }
+function cacheFeed(userId: string, items: ApiProduct[]) {
+  try { localStorage.setItem(feedCacheKey(userId), JSON.stringify(items.filter((item) => item.seller_id !== userId))); } catch { /* ignore */ }
 }
 function withTimeout<T>(promise: Promise<T>, timeout = REQUEST_TIMEOUT_MS): Promise<T> {
   return Promise.race([
@@ -45,7 +48,7 @@ function withTimeout<T>(promise: Promise<T>, timeout = REQUEST_TIMEOUT_MS): Prom
 }
 
 export default function MarketplaceApp({ profile }: Props) {
-  const cachedFeed = useMemo(() => readCachedFeed(), []);
+  const cachedFeed = useMemo(() => readCachedFeed(profile.id), [profile.id]);
   const [screen, setScreen] = useState<Screen>('feed');
   const [profileTab, setProfileTab] = useState<ProfileTab>('active');
   const [feedProducts, setFeedProducts] = useState<ApiProduct[]>(cachedFeed);
@@ -57,7 +60,7 @@ export default function MarketplaceApp({ profile }: Props) {
   const [sellerLoading, setSellerLoading] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [feedIndex, setFeedIndex] = useState(0);
-  const [history, setHistory] = useState<number[]>([]);
+  const [history, setHistory] = useState<string[]>([]);
   const [liked, setLiked] = useState<string[]>([]);
   const [query, setQuery] = useState('');
   const [notice, setNotice] = useState('');
@@ -70,6 +73,7 @@ export default function MarketplaceApp({ profile }: Props) {
   const refreshMarketplace = async () => {
     if (!feedProducts.length) setLoadingProducts(true);
     setFeedError(false);
+    const currentProductId = feedProducts[feedIndex]?.id;
     try {
       const [feedResult, mineResult, favoritesResult] = await Promise.allSettled([
         withTimeout(api.products({ status: 'active' })),
@@ -77,10 +81,17 @@ export default function MarketplaceApp({ profile }: Props) {
         withTimeout(api.favorites(profile.id)),
       ]);
       if (feedResult.status === 'fulfilled') {
-        const items = feedResult.value.items;
+        const items = feedResult.value.items.filter((item) => item.seller_id !== profile.id);
         setFeedProducts(items);
-        cacheFeed(items);
-        setFeedIndex((current) => Math.min(current, Math.max(items.length - 1, 0)));
+        cacheFeed(profile.id, items);
+        setFeedIndex((current) => {
+          if (currentProductId) {
+            const preservedIndex = items.findIndex((item) => item.id === currentProductId);
+            if (preservedIndex >= 0) return preservedIndex;
+          }
+          return Math.min(current, Math.max(items.length - 1, 0));
+        });
+        setHistory((ids) => ids.filter((id) => items.some((item) => item.id === id)));
       } else if (!feedProducts.length) setFeedError(true);
       if (mineResult.status === 'fulfilled') setMyProducts(mineResult.value.items);
       if (favoritesResult.status === 'fulfilled') {
@@ -92,7 +103,12 @@ export default function MarketplaceApp({ profile }: Props) {
     }
   };
 
-  useEffect(() => { void refreshMarketplace(); }, [profile.id]);
+  useEffect(() => {
+    setFeedProducts(readCachedFeed(profile.id));
+    setFeedIndex(0);
+    setHistory([]);
+    void refreshMarketplace();
+  }, [profile.id]);
 
   const currentFeedProduct = feedProducts[feedIndex];
   const selectedProduct = useMemo(() =>
@@ -147,9 +163,7 @@ export default function MarketplaceApp({ profile }: Props) {
     try {
       const updated = await api.updateMyProductStatus(product.id, status);
       setMyProducts((items) => items.map((item) => item.id === updated.id ? updated : item));
-      setFeedProducts((items) => status === 'active'
-        ? (items.some((item) => item.id === updated.id) ? items.map((item) => item.id === updated.id ? updated : item) : [updated, ...items])
-        : items.filter((item) => item.id !== updated.id));
+      setFeedProducts((items) => items.filter((item) => item.id !== updated.id));
       setSelectedId(updated.id);
       showNotice(`Статус: ${statusLabels[status]}`);
     } catch { showNotice('Не удалось изменить статус'); }
@@ -174,14 +188,21 @@ export default function MarketplaceApp({ profile }: Props) {
   const moveFeed = (direction: 'next' | 'previous', action?: 'skip' | 'like') => {
     if (!feedProducts.length || cardMotion) return;
     const product = feedProducts[feedIndex];
+    if (!product) return;
     if (direction === 'previous') {
-      const previousIndex = history.at(-1);
-      if (previousIndex === undefined) { showNotice('Это первый просмотренный товар'); return; }
+      const previousId = history.at(-1);
+      if (!previousId) { showNotice('Это первый просмотренный товар'); return; }
+      const previousIndex = feedProducts.findIndex((item) => item.id === previousId);
+      if (previousIndex < 0) {
+        setHistory((items) => items.slice(0, -1));
+        showNotice('Предыдущий товар больше недоступен');
+        return;
+      }
       setCardMotion('back');
       window.setTimeout(() => { setFeedIndex(previousIndex); setHistory((items) => items.slice(0, -1)); setPhotoIndex(0); setCardMotion(null); }, 230);
       return;
     }
-    setHistory((items) => [...items.slice(-19), feedIndex]);
+    setHistory((items) => [...items.slice(-19), product.id]);
     setCardMotion(action === 'like' ? 'right' : 'left');
     if (action) api.swipe(product.id, action).catch(() => undefined);
     window.setTimeout(() => { setFeedIndex((current) => feedProducts.length > 1 ? (current + 1) % feedProducts.length : current); setSelectedId(''); setPhotoIndex(0); setCardMotion(null); }, 260);
@@ -197,11 +218,14 @@ export default function MarketplaceApp({ profile }: Props) {
   const likeAndNext = async (product: ApiProduct) => { if (!liked.includes(product.id)) await toggleLike(product); moveFeed('next', 'like'); };
 
   const header = (title = 'DRIPLY', back = false, onBack?: () => void) => (
-    <header className="topbar motion-header">
-      <button className="icon-button pressable" onClick={() => back ? (onBack ? onBack() : navigate('feed')) : showNotice('Уведомлений пока нет')}>{back ? <ChevronLeft /> : <Bell size={21} />}</button>
-      <div className="brand"><strong>{title}</strong>{title === 'DRIPLY' && <span>ЛИСТАЙ. НАХОДИ. НОСИ.</span>}</div>
-      <button className="icon-button pressable" onClick={() => title === 'Профиль' ? showNotice('Редактирование профиля будет следующим экраном') : navigate('filters')}>{title === 'Профиль' ? <Settings size={21} /> : <SlidersHorizontal size={21} />}</button>
-    </header>
+    <AppHeader
+      title={title}
+      back={back}
+      onBack={onBack || (() => navigate('feed'))}
+      onNotifications={() => showNotice('Уведомлений пока нет')}
+      onFilters={() => navigate('filters')}
+      onProfileSettings={() => showNotice('Редактирование профиля будет следующим экраном')}
+    />
   );
 
   const productGrid = (items: ApiProduct[], own = false) => <div className="product-grid">{items.map((item) =>
@@ -213,7 +237,7 @@ export default function MarketplaceApp({ profile }: Props) {
   const renderFeed = () => {
     const product = currentFeedProduct;
     if (loadingProducts && !product) return <>{header()}</>;
-    if (!product) return <>{header()}<div className="empty-state motion-pop"><b>{feedError ? 'Не удалось загрузить ленту' : 'В ленте пока нет товаров'}</b><p>{feedError ? 'Проверь соединение или повтори загрузку.' : 'Опубликуй первую вещь — она появится здесь.'}</p><button className="primary-button" onClick={() => feedError ? void refreshMarketplace() : navigate('create')}>{feedError ? 'Повторить' : 'Добавить товар'}</button></div></>;
+    if (!product) return <>{header()}<div className="empty-state motion-pop"><b>{feedError ? 'Не удалось загрузить ленту' : 'В ленте пока нет товаров других продавцов'}</b><p>{feedError ? 'Проверь соединение или повтори загрузку.' : 'Твои объявления видны другим пользователям, а здесь появятся их товары.'}</p><button className="primary-button" onClick={() => feedError ? void refreshMarketplace() : navigate('create')}>{feedError ? 'Повторить' : 'Добавить товар'}</button></div></>;
     const images = orderedImages(product); const activeImage = images[photoIndex % Math.max(images.length, 1)];
     return <>{header()}<nav className="feed-tabs motion-tabs"><button className="active">Для вас</button><button onClick={() => showNotice('Подписки появятся позже')}>Подписки</button><button onClick={() => showNotice(`Показываем товары рядом с ${profile.city}`)}>Рядом</button></nav>
       <section className="swipe-stage"><div className="card-stack-shadow card-stack-shadow-one" /><div className="card-stack-shadow card-stack-shadow-two" />
@@ -243,7 +267,7 @@ export default function MarketplaceApp({ profile }: Props) {
       </section></>;
   };
 
-  const renderProfile = () => <>{header('Профиль', true)}<section className="profile-head motion-header"><div className="avatar large">{initials(profile.display_name || profile.username)}</div><h2>{profile.username}{profile.is_verified ? ' ✓' : ''}</h2><p>{ownLocation}</p>{profile.bio && <small>{profile.bio}</small>}</section><nav className="profile-product-tabs motion-tabs"><button className={profileTab === 'active' ? 'active' : ''} onClick={() => setProfileTab('active')}>Активные</button><button className={profileTab === 'sold' ? 'active' : ''} onClick={() => setProfileTab('sold')}>Проданные</button><button className={profileTab === 'archived' ? 'active' : ''} onClick={() => setProfileTab('archived')}>Архив</button></nav>{loadingProducts ? <div className="profile-products-loading">Обновляем объявления…</div> : visibleMyProducts.length ? productGrid(visibleMyProducts, true) : <section className="empty-profile-products motion-pop"><div>＋</div><h3>Здесь пока пусто</h3><p>{profileTab === 'active' ? 'Добавь первую вещь — она появится здесь и в общей ленте.' : 'Товары с этим статусом появятся здесь.'}</p>{profileTab === 'active' && <button className="primary-button" onClick={() => navigate('create')}>Добавить товар</button>}</section>}</>;
+  const renderProfile = () => <>{header('Профиль', true)}<section className="profile-head motion-header"><div className="avatar large">{initials(profile.display_name || profile.username)}</div><h2>{profile.username}{profile.is_verified ? ' ✓' : ''}</h2><p>{ownLocation}</p>{profile.bio && <small>{profile.bio}</small>}</section><nav className="profile-product-tabs motion-tabs"><button className={profileTab === 'active' ? 'active' : ''} onClick={() => setProfileTab('active')}>Активные</button><button className={profileTab === 'sold' ? 'active' : ''} onClick={() => setProfileTab('sold')}>Проданные</button><button className={profileTab === 'archived' ? 'active' : ''} onClick={() => setProfileTab('archived')}>Архив</button></nav>{loadingProducts ? <div className="profile-products-loading">Обновляем объявления…</div> : visibleMyProducts.length ? productGrid(visibleMyProducts, true) : <section className="empty-profile-products motion-pop"><div>＋</div><h3>Здесь пока пусто</h3><p>{profileTab === 'active' ? 'Добавь первую вещь — она появится у других пользователей в общей ленте.' : 'Товары с этим статусом появятся здесь.'}</p>{profileTab === 'active' && <button className="primary-button" onClick={() => navigate('create')}>Добавить товар</button>}</section>}</>;
 
   const renderSeller = () => {
     if (!selectedSeller) return <>{header('Продавец', true, () => navigate('product'))}<div className="empty-state"><b>Профиль не найден</b></div></>;
@@ -255,8 +279,9 @@ export default function MarketplaceApp({ profile }: Props) {
   const renderMessages = () => <>{header('Сообщения', true)}<div className="empty-state"><b>Сообщений пока нет</b><p>Чаты с продавцами появятся здесь.</p></div></>;
   const renderFilters = () => <>{header('Фильтры', true)}<div className="form filters"><label>Категория<select><option>Все категории</option><option>Куртки</option><option>Кроссовки</option><option>Худи</option></select></label><label>Город<input placeholder={profile.city} /></label><button className="primary-button" onClick={() => navigate('feed')}>Показать товары</button></div></>;
 
-  if (screen === 'create') return <main className="app-shell"><CreateProductScreen profile={profile} onBack={() => navigate('profile')} onCreated={(product) => { setMyProducts((items) => [product, ...items]); setFeedProducts((items) => { const next = [product, ...items]; cacheFeed(next); return next; }); setSelectedId(product.id); setFeedIndex(0); showNotice('Товар опубликован'); navigate('profile'); void refreshMarketplace(); }} /></main>;
+  if (screen === 'create') return <main className="app-shell"><CreateProductScreen profile={profile} onBack={() => navigate('profile')} onCreated={(product) => { setMyProducts((items) => [product, ...items]); setSelectedId(product.id); showNotice('Товар опубликован'); navigate('profile'); void refreshMarketplace(); }} /></main>;
 
   const content = screen === 'feed' ? renderFeed() : screen === 'explore' ? renderExplore() : screen === 'profile' ? renderProfile() : screen === 'seller' ? renderSeller() : screen === 'product' ? renderProduct() : screen === 'likes' ? renderLikes() : screen === 'messages' ? renderMessages() : renderFilters();
-  return <main className={`app-shell ${screen === 'feed' ? 'feed-screen' : ''}`}>{notice && <div className="toast">{notice}</div>}<section className="screen-transition">{content}</section><nav className="bottom-nav"><button className={screen === 'feed' ? 'active' : ''} onClick={() => navigate('feed')}><Home /><span>Лента</span></button><button className={screen === 'explore' ? 'active' : ''} onClick={() => navigate('explore')}><Search /><span>Поиск</span></button><button className="create" onClick={() => navigate('create')}><Plus /></button><button className={screen === 'likes' ? 'active' : ''} onClick={() => navigate('likes')}><Heart /><span>Избранное</span></button><button className={screen === 'profile' ? 'active' : ''} onClick={() => navigate('profile')}><User /><span>Профиль</span></button></nav></main>;
+  const mainScreen: MainScreen = ['feed', 'explore', 'create', 'likes', 'profile'].includes(screen) ? screen as MainScreen : 'feed';
+  return <main className={`app-shell ${screen === 'feed' ? 'feed-screen' : ''}`}>{notice && <div className="toast">{notice}</div>}<section className="screen-transition">{content}</section><BottomNavigation activeScreen={mainScreen} onNavigate={navigate} /></main>;
 }
