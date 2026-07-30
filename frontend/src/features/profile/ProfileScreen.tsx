@@ -38,10 +38,6 @@ export default function ProfileScreen({
   onNotifications,
   onFilters,
 }: Props) {
-  const openDeals = () => {
-    window.dispatchEvent(new CustomEvent('driply:open-deal-center'));
-  };
-
   return (
     <>
       <AppHeader
@@ -63,12 +59,6 @@ export default function ProfileScreen({
         <p>{location}</p>
         {profile.bio && <small>{profile.bio}</small>}
       </section>
-
-      <button className="deal-center-button" type="button" onClick={openDeals}>
-        <span>⇄</span>
-        <b>Мои покупки и продажи</b>
-        <small>Предложения цены и статусы сделок</small>
-      </button>
 
       <nav className="profile-product-tabs motion-tabs" aria-label="Товары профиля">
         <button type="button" className={activeTab === 'active' ? 'active' : ''} onClick={() => onTabChange('active')}>Активные</button>
