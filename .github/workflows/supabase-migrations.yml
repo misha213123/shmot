@@ -61,6 +61,16 @@ jobs:
       - name: Link Supabase project
         run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
 
+      - name: Baseline existing production schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The production tables already existed before migrations were introduced.
+          # Mark only the initial schema migration as applied so it is not executed again.
+          if ! supabase migration list --linked | grep -E '^\s*0001\s+\|\s+0001\s+' >/dev/null 2>&1; then
+            supabase migration repair 0001 --status applied --linked
+          fi
+
       - name: Show migration status
         run: supabase migration list --linked
 
