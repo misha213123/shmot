@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 
 import AppHeader from '../../shared/navigation/AppHeader';
 import type { ApiProfile } from '../../lib/api';
+import { openDealCenter } from '../../lib/dealRuntime';
 
 type ProfileTab = 'active' | 'sold' | 'archived';
 
@@ -15,7 +16,6 @@ type Props = {
   onTabChange: (tab: ProfileTab) => void;
   onCreateProduct: () => void;
   onSettings: () => void;
-  onDeals: () => void;
   onBack: () => void;
   onNotifications: () => void;
   onFilters: () => void;
@@ -34,12 +34,12 @@ export default function ProfileScreen({
   products,
   onTabChange,
   onCreateProduct,
-  onSettings,
-  onDeals,
   onBack,
   onNotifications,
   onFilters,
 }: Props) {
+  const openSettings = () => window.dispatchEvent(new Event('driply:edit-profile'));
+
   return (
     <>
       <AppHeader
@@ -48,7 +48,7 @@ export default function ProfileScreen({
         onBack={onBack}
         onNotifications={onNotifications}
         onFilters={onFilters}
-        onProfileSettings={onSettings}
+        onProfileSettings={openSettings}
       />
 
       <section className="profile-head motion-header">
@@ -62,7 +62,7 @@ export default function ProfileScreen({
         {profile.bio && <small>{profile.bio}</small>}
       </section>
 
-      <button type="button" className="deal-center-button" onClick={onDeals}>
+      <button type="button" className="deal-center-button" onClick={() => void openDealCenter()}>
         <span>⇄</span>
         <b>Мои покупки и продажи</b>
         <small>Предложения цены и статусы сделок</small>
