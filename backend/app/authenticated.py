@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -31,7 +31,13 @@ async def recover_profile_by_email(user: AuthUser, session: AsyncSession) -> Pro
     if not user.email:
         return None
 
-    stale = await session.scalar(select(Profile).where(Profile.email == user.email, Profile.id != user.id))
+    normalized_email = user.email.strip().lower()
+    stale = await session.scalar(
+        select(Profile).where(
+            func.lower(func.trim(Profile.email)) == normalized_email,
+            Profile.id != user.id,
+        )
+    )
     if stale is None:
         return None
 
