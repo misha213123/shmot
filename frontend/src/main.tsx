@@ -15,7 +15,7 @@ import './styles/social.css';
 import './styles/fullscreen-feed.css';
 import './styles/non-feed-header-fix.css';
 
-type BoundaryProps = { children: ReactNode };
+ type BoundaryProps = { children: ReactNode };
 type BoundaryState = { failed: boolean };
 
 class AppErrorBoundary extends Component<BoundaryProps, BoundaryState> {
@@ -100,7 +100,6 @@ async function enableOptionalRuntimes(): Promise<void> {
     async () => (await import('./lib/feedChromeRuntime')).enableFeedChromeRuntime(),
     async () => (await import('./lib/instantMarketplaceCache')).enableInstantMarketplaceCache(),
     async () => (await import('./lib/removeFeedLoadingText')).enableFeedLoadingCleanup(),
-    async () => (await import('./lib/profileDomSync')).enableProfileDomSync(),
     async () => (await import('./lib/productEditDomSync')).enableProductEditDomSync(),
     async () => (await import('./lib/chatRuntime')).enableChatRuntime(),
     async () => (await import('./lib/reservationDomSync')).enableReservationDomSync(),
@@ -108,7 +107,6 @@ async function enableOptionalRuntimes(): Promise<void> {
     async () => (await import('./lib/socialRuntime')).enableSocialRuntime(),
     async () => (await import('./lib/dealRuntime')).enableDealRuntime(),
     async () => (await import('./lib/reviewRuntime')).enableReviewRuntime(),
-    async () => (await import('./lib/advancedSearchRuntime')).enableAdvancedSearchRuntime(),
     async () => (await import('./lib/recommendationRuntime')).enableRecommendationRuntime(),
     async () => (await import('./lib/adminNavigationRuntime')).enableAdminNavigationRuntime(),
   ];
