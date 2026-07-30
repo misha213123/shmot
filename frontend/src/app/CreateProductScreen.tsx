@@ -93,13 +93,12 @@ export default function CreateProductScreen({ profile, onBack, onCreated }: Prop
         });
 
       if (uploadError) {
-        if (/bucket not found/i.test(uploadError.message)) {
-          throw new Error('Хранилище фотографий ещё не создано. Нужно один раз создать bucket product-images в Supabase Storage.');
-        }
-        if (/row-level security|policy|permission|unauthorized/i.test(uploadError.message)) {
-          throw new Error('Supabase запретил загрузку фото. Проверь политики Storage для bucket product-images.');
-        }
-        throw new Error(`Не удалось загрузить фото: ${uploadError.message}`);
+        console.error('DRIPLY product image upload failed', {
+          bucket: STORAGE_BUCKET,
+          path,
+          message: uploadError.message,
+        });
+        throw new Error('Не удалось загрузить фотографии. Проверь интернет и попробуй ещё раз.');
       }
 
       const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
@@ -205,7 +204,7 @@ export default function CreateProductScreen({ profile, onBack, onCreated }: Prop
         </fieldset>
 
         {error && <p className="create-error motion-pop">{error}</p>}
-        <button className="publish-button pressable" type="submit" disabled={saving}>
+        <button className="publish-button pressable" type="submit" disabled={saving || images.length === 0}>
           {saving ? <><LoaderCircle className="spin" /> Загружаем и публикуем</> : 'Опубликовать товар'}
         </button>
       </form>
