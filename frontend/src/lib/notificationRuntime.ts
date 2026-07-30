@@ -4,6 +4,7 @@ import '../styles/notifications-center.css';
 let enabled = false;
 let pollTimer: number | null = null;
 let unreadCount = 0;
+let cachedItems: ApiNotification[] = [];
 
 function closeCenter(): void {
   document.querySelector('.notification-center-backdrop')?.remove();
@@ -41,10 +42,24 @@ function updateBadges(): void {
 async function refreshBadge(): Promise<void> {
   try {
     const result = await api.notifications();
+    cachedItems = result.items;
     unreadCount = result.unread_count;
     updateBadges();
   } catch {
     // Keep the current badge during temporary network errors.
+  }
+}
+
+function openNotification(item: ApiNotification): void {
+  closeCenter();
+  if (/message|chat|system/i.test(item.type)) {
+    window.dispatchEvent(new CustomEvent('driply:open-chat-for-product', {
+      detail: { productId: item.product_id || '', actorId: item.actor_id || '' },
+    }));
+    return;
+  }
+  if (item.product_id) {
+    window.dispatchEvent(new CustomEvent('driply:open-product-by-id', { detail: { productId: item.product_id } }));
   }
 }
 
@@ -59,7 +74,8 @@ function renderItems(container: HTMLElement, items: ApiNotification[]): void {
   }
 
   items.forEach((item) => {
-    const card = document.createElement('article');
+    const card = document.createElement('button');
+    card.type = 'button';
     card.className = `notification-card${item.is_read ? '' : ' unread'}`;
     const icon = document.createElement('span');
     icon.className = 'notification-card-icon';
@@ -73,6 +89,11 @@ function renderItems(container: HTMLElement, items: ApiNotification[]): void {
     time.textContent = formatTime(item.created_at);
     copy.append(title, body, time);
     card.append(icon, copy);
+    card.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      openNotification(item);
+    });
     container.append(card);
   });
 }
@@ -83,7 +104,7 @@ async function openCenter(): Promise<void> {
   backdrop.className = 'notification-center-backdrop';
   backdrop.innerHTML = `<section class="notification-center-panel">
     <header><button type="button" class="notification-center-close" aria-label="Закрыть">×</button><strong>Уведомления</strong><span></span></header>
-    <main class="notification-center-body"><div class="notification-loading"><span></span><b>Загружаем…</b></div></main>
+    <main class="notification-center-body"></main>
   </section>`;
   document.body.append(backdrop);
   document.documentElement.classList.add('notification-center-open');
@@ -98,8 +119,12 @@ async function openCenter(): Promise<void> {
 
   const body = backdrop.querySelector<HTMLElement>('.notification-center-body');
   if (!body) return;
+  if (cachedItems.length) renderItems(body, cachedItems);
+  else body.innerHTML = '<div class="notification-loading"><span></span><b>Загружаем…</b></div>';
+
   try {
     const result = await api.notifications();
+    cachedItems = result.items;
     renderItems(body, result.items);
     if (result.unread_count > 0) {
       await api.readAllNotifications();
@@ -107,7 +132,7 @@ async function openCenter(): Promise<void> {
       updateBadges();
     }
   } catch (error) {
-    body.innerHTML = `<div class="notification-empty"><span>!</span><b>Не удалось загрузить уведомления</b><p>${error instanceof Error ? error.message : 'Попробуй ещё раз.'}</p></div>`;
+    if (!cachedItems.length) body.innerHTML = `<div class="notification-empty"><span>!</span><b>Не удалось загрузить уведомления</b><p>${error instanceof Error ? error.message : 'Попробуй ещё раз.'}</p></div>`;
   }
 }
 
