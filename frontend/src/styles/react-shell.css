@@ -1,0 +1,125 @@
+/* React-owned application shell. Loaded last to override legacy runtime styles. */
+:root {
+  --driply-shell-width: 430px;
+  --driply-nav-height: 74px;
+  --driply-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --driply-safe-top: env(safe-area-inset-top, 0px);
+  --driply-nav-total: calc(var(--driply-nav-height) + var(--driply-safe-bottom));
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-width: 320px;
+  min-height: 100%;
+}
+
+.app-shell {
+  position: relative;
+  width: min(100%, var(--driply-shell-width));
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin-inline: auto;
+  padding-bottom: calc(var(--driply-nav-total) + 20px) !important;
+  overflow-x: clip;
+  background: #fbfaf8;
+}
+
+.app-shell:not(.feed-screen) {
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: auto !important;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.app-shell:not(.feed-screen) .screen-transition {
+  display: block;
+  width: 100%;
+  min-height: calc(100vh - var(--driply-nav-total));
+  min-height: calc(100dvh - var(--driply-nav-total));
+  padding-bottom: calc(var(--driply-nav-total) + 24px) !important;
+  overflow: visible;
+}
+
+.topbar {
+  position: relative;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: center;
+  width: 100%;
+  min-height: 48px;
+}
+
+.topbar .brand {
+  min-width: 0;
+  align-items: center;
+  text-align: center;
+}
+
+.topbar .brand strong {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bottom-nav {
+  position: fixed !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: 0 !important;
+  z-index: 1000 !important;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: end;
+  width: min(100%, var(--driply-shell-width)) !important;
+  max-width: var(--driply-shell-width);
+  min-height: var(--driply-nav-total);
+  margin: 0;
+  padding: 10px 12px calc(10px + var(--driply-safe-bottom)) !important;
+  transform: translateX(-50%) !important;
+  box-sizing: border-box;
+  isolation: isolate;
+  background: rgba(251, 250, 248, 0.96) !important;
+  border-top: 1px solid rgba(20, 18, 15, 0.1);
+  box-shadow: 0 -8px 28px rgba(20, 18, 15, 0.08);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.bottom-nav button {
+  min-width: 0;
+  min-height: 48px;
+  touch-action: manipulation;
+}
+
+.app-shell.feed-screen {
+  height: 100vh !important;
+  height: 100dvh !important;
+  min-height: 100vh !important;
+  min-height: 100dvh !important;
+  max-height: 100vh !important;
+  max-height: 100dvh !important;
+  padding-bottom: var(--driply-nav-total) !important;
+  overflow: hidden !important;
+}
+
+@media (min-width: 601px) {
+  .bottom-nav {
+    border-inline: 1px solid rgba(20, 18, 15, 0.08);
+    border-radius: 18px 18px 0 0;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  :root { --driply-nav-height: 62px; }
+  .bottom-nav {
+    padding-top: 6px !important;
+    padding-bottom: calc(6px + var(--driply-safe-bottom)) !important;
+  }
+  .bottom-nav button { min-height: 42px; }
+  .bottom-nav span { font-size: 9px; }
+}
