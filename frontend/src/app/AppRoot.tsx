@@ -8,6 +8,7 @@ import { auth } from '../lib/auth';
 import '../styles/auth.css';
 
 type AuthMode = 'login' | 'register';
+type ProfileState = 'idle' | 'checking' | 'missing' | 'ready' | 'error';
 
 type CountryConfig = {
   name: string;
@@ -110,6 +111,7 @@ function formatLocalPhone(value: string): string {
 export default function AppRoot() {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<ApiProfile | null>(null);
+  const [profileState, setProfileState] = useState<ProfileState>('idle');
   const [loading, setLoading] = useState(true);
   const [profileSaving, setProfileSaving] = useState(false);
   const [mode, setMode] = useState<AuthMode>('login');
@@ -129,6 +131,7 @@ export default function AppRoot() {
   const returnToLogin = async (userId?: string) => {
     if (userId) clearCachedProfile(userId);
     setProfile(null);
+    setProfileState('idle');
     setSession(null);
     setDraft(emptyProfile);
     setMode('login');
@@ -153,7 +156,10 @@ export default function AppRoot() {
     const subscription = auth.onChange((value) => {
       if (!active) return;
       setSession(value);
-      if (!value) setProfile(null);
+      if (!value) {
+        setProfile(null);
+        setProfileState('idle');
+      }
     });
 
     return () => {
@@ -169,19 +175,22 @@ export default function AppRoot() {
     const cached = readCachedProfile(userId);
 
     setProfile(cached);
+    setProfileState(cached ? 'ready' : 'checking');
 
     api.myProfile()
       .then((value) => {
         if (!active) return;
         cacheProfile(userId, value);
         setProfile(value);
+        setProfileState('ready');
         setError('');
       })
       .catch((reason) => {
         if (!active) return;
-        if (reason instanceof ApiError && reason.status === 404) {
+        if (reason instanceof ApiError && (reason.status === 404 || reason.status === 409)) {
           clearCachedProfile(userId);
           setProfile(null);
+          setProfileState('missing');
           setError('');
           return;
         }
@@ -189,7 +198,8 @@ export default function AppRoot() {
           void returnToLogin(userId);
           return;
         }
-        if (!cached) setError('Не удалось проверить профиль. Проверь интернет и повтори попытку.');
+        setProfileState(cached ? 'ready' : 'error');
+        if (!cached) setError('Не удалось загрузить профиль. Обнови страницу или проверь интернет.');
       });
 
     return () => {
@@ -206,13 +216,16 @@ export default function AppRoot() {
     try {
       if (mode === 'login') {
         const nextSession = await auth.signIn(email.trim(), password);
+        setProfileState('checking');
         setSession(nextSession);
       } else {
         const user = await auth.signUp(email.trim(), password);
         if (user?.identities?.length === 0) throw new Error('Этот email уже зарегистрирован');
         const nextSession = await auth.session();
-        if (nextSession) setSession(nextSession);
-        else {
+        if (nextSession) {
+          setProfileState('checking');
+          setSession(nextSession);
+        } else {
           setMessage('Проверь почту и подтверди регистрацию, затем войди в аккаунт.');
           setMode('login');
         }
@@ -242,6 +255,7 @@ export default function AppRoot() {
       });
       if (session) cacheProfile(session.user.id, saved);
       setProfile(saved);
+      setProfileState('ready');
     } catch (reason) {
       if (reason instanceof ApiError && reason.status === 401) {
         await returnToLogin(session?.user.id);
@@ -264,7 +278,9 @@ export default function AppRoot() {
     }));
   };
 
-  if (loading) return <main className="auth-shell auth-loading"><LoaderCircle className="spin" /><b>Загружаем DRIPLY</b></main>;
+  if (loading || (session && profileState === 'checking')) {
+    return <main className="auth-shell auth-loading"><LoaderCircle className="spin" /><b>Загружаем профиль</b></main>;
+  }
 
   if (!session) {
     return (
@@ -293,7 +309,17 @@ export default function AppRoot() {
     );
   }
 
-  if (!profile) {
+  if (profileState === 'error') {
+    return (
+      <main className="auth-shell auth-loading">
+        <b>Не удалось загрузить профиль</b>
+        <p>{error}</p>
+        <button className="auth-primary" type="button" onClick={() => window.location.reload()}>Повторить</button>
+      </main>
+    );
+  }
+
+  if (profileState === 'missing') {
     return (
       <main className="auth-shell onboarding-shell">
         <section className="auth-card onboarding-card">
@@ -321,5 +347,5 @@ export default function AppRoot() {
     );
   }
 
-  return <AppStable profile={profile} />;
+  return profile ? <AppStable profile={profile} /> : <main className="auth-shell auth-loading"><LoaderCircle className="spin" /><b>Загружаем профиль</b></main>;
 }
