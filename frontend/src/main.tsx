@@ -106,6 +106,7 @@ async function enableOptionalRuntimes(): Promise<void> {
     async () => (await import('./lib/productEditDomSync')).enableProductEditDomSync(),
     async () => (await import('./lib/chatProductContextRuntime')).enableChatProductContextRuntime(),
     async () => (await import('./lib/chatRuntime')).enableChatRuntime(),
+    async () => (await import('./lib/notificationChatBridge')).enableNotificationChatBridge(),
     async () => (await import('./lib/reservationDomSync')).enableReservationDomSync(),
     async () => (await import('./lib/reportRuntime')).enableReportRuntime(),
     async () => (await import('./lib/socialRuntime')).enableSocialRuntime(),
