@@ -5,10 +5,12 @@ let enabled = false;
 let pollTimer: number | null = null;
 let unreadCount = 0;
 let cachedItems: ApiNotification[] = [];
+let suppressBellUntil = 0;
 
 function closeCenter(): void {
   document.querySelector('.notification-center-backdrop')?.remove();
   document.documentElement.classList.remove('notification-center-open');
+  suppressBellUntil = Date.now() + 450;
 }
 
 function formatTime(value: string): string {
@@ -26,7 +28,7 @@ function iconFor(type: string): string {
 }
 
 function updateBadges(): void {
-  document.querySelectorAll<HTMLButtonElement>('button[aria-label="Уведомления"]').forEach((button) => {
+  document.querySelectorAll<HTMLButtonElement>('.topbar button[aria-label="Уведомления"]').forEach((button) => {
     button.classList.add('notification-bell-button');
     let badge = button.querySelector<HTMLElement>('.notification-unread-badge');
     if (!badge) {
@@ -46,7 +48,7 @@ async function refreshBadge(): Promise<void> {
     unreadCount = result.unread_count;
     updateBadges();
   } catch {
-    // Keep the current badge during temporary network errors.
+    // Keep current UI during temporary network errors.
   }
 }
 
@@ -89,17 +91,19 @@ function renderItems(container: HTMLElement, items: ApiNotification[]): void {
     time.textContent = formatTime(item.created_at);
     copy.append(title, body, time);
     card.append(icon, copy);
-    card.addEventListener('click', (event) => {
+    card.addEventListener('pointerup', (event) => {
       event.preventDefault();
       event.stopImmediatePropagation();
       openNotification(item);
-    });
+    }, { once: true });
     container.append(card);
   });
 }
 
 async function openCenter(): Promise<void> {
+  if (Date.now() < suppressBellUntil) return;
   closeCenter();
+  suppressBellUntil = 0;
   const backdrop = document.createElement('div');
   backdrop.className = 'notification-center-backdrop';
   backdrop.innerHTML = `<section class="notification-center-panel">
@@ -110,12 +114,12 @@ async function openCenter(): Promise<void> {
   document.documentElement.classList.add('notification-center-open');
 
   const close = backdrop.querySelector<HTMLButtonElement>('.notification-center-close');
-  close?.addEventListener('click', (event) => {
+  close?.addEventListener('pointerup', (event) => {
     event.preventDefault();
     event.stopImmediatePropagation();
     closeCenter();
   });
-  backdrop.addEventListener('click', (event) => { if (event.target === backdrop) closeCenter(); });
+  backdrop.addEventListener('pointerup', (event) => { if (event.target === backdrop) closeCenter(); });
 
   const body = backdrop.querySelector<HTMLElement>('.notification-center-body');
   if (!body) return;
@@ -136,9 +140,9 @@ async function openCenter(): Promise<void> {
   }
 }
 
-function handleClick(event: MouseEvent): void {
-  const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[aria-label="Уведомления"]');
-  if (!button) return;
+function handlePointer(event: PointerEvent): void {
+  const button = (event.target as HTMLElement).closest<HTMLButtonElement>('.topbar button[aria-label="Уведомления"]');
+  if (!button || button.closest('.bottom-nav') || Date.now() < suppressBellUntil) return;
   event.preventDefault();
   event.stopImmediatePropagation();
   void openCenter();
@@ -147,7 +151,7 @@ function handleClick(event: MouseEvent): void {
 export function enableNotificationRuntime(): void {
   if (enabled || typeof window === 'undefined') return;
   enabled = true;
-  document.addEventListener('click', handleClick, true);
+  document.addEventListener('pointerup', handlePointer, true);
   window.addEventListener('driply:open-notifications', () => void openCenter());
   window.addEventListener('driply:notifications-refresh', () => void refreshBadge());
   window.addEventListener('focus', () => void refreshBadge());
