@@ -36,7 +36,24 @@ function money(value: string, currency: string) {
   return `${new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(Number(value))} ${currency}`;
 }
 
-function closePanel() { document.querySelector('.deal-overlay')?.remove(); }
+function closePanel() {
+  document.querySelectorAll('.deal-overlay').forEach((overlay) => overlay.remove());
+  document.documentElement.classList.remove('deal-open');
+  document.body.style.removeProperty('overflow');
+}
+
+function bindCloseControls(overlay: HTMLElement) {
+  overlay.querySelectorAll<HTMLElement>('.deal-close').forEach((button) => {
+    button.onclick = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      closePanel();
+    };
+  });
+  overlay.onclick = (event) => {
+    if (event.target === overlay) closePanel();
+  };
+}
 
 function showToast(text: string) {
   const toast = document.createElement('div');
@@ -50,8 +67,7 @@ function offerModal(productId: string) {
   const overlay = document.createElement('div'); overlay.className = 'deal-overlay';
   overlay.innerHTML = `<section class="deal-sheet deal-offer-sheet"><button class="deal-close" aria-label="Закрыть">×</button><span class="deal-kicker">ПРЕДЛОЖЕНИЕ ЦЕНЫ</span><h2>Сколько готов заплатить?</h2><p>Продавец сможет принять, отклонить или предложить другую цену.</p><label>Ваша цена<input inputmode="decimal" type="number" min="1" step="0.01" placeholder="Например, 280" /></label><button class="deal-primary">Отправить предложение</button><small class="deal-error"></small></section>`;
   document.body.append(overlay);
-  overlay.querySelector('.deal-close')?.addEventListener('click', closePanel);
-  overlay.addEventListener('click', (event) => { if (event.target === overlay) closePanel(); });
+  bindCloseControls(overlay);
   const input = overlay.querySelector('input') as HTMLInputElement;
   const error = overlay.querySelector('.deal-error') as HTMLElement;
   (overlay.querySelector('.deal-primary') as HTMLButtonElement).onclick = async () => {
@@ -70,11 +86,11 @@ function reviewModal(deal: Deal) {
   const overlay = document.createElement('div'); overlay.className = 'deal-overlay';
   overlay.innerHTML = `<section class="deal-sheet review-sheet"><button class="deal-close" aria-label="Закрыть">×</button><span class="deal-kicker">ОТЗЫВ О ПРОДАВЦЕ</span><h2>${deal.product_title}</h2><p>Оцени покупку у @${deal.seller_username}</p><div class="review-stars">${[1,2,3,4,5].map((value) => `<button data-rating="${value}" aria-label="${value} звёзд">★</button>`).join('')}</div><textarea maxlength="1000" placeholder="Расскажи, как прошла сделка"></textarea><button class="deal-primary review-submit" disabled>Опубликовать отзыв</button><small class="deal-error"></small></section>`;
   document.body.append(overlay);
+  bindCloseControls(overlay);
   let rating = 0;
   const submit = overlay.querySelector('.review-submit') as HTMLButtonElement;
   const error = overlay.querySelector('.deal-error') as HTMLElement;
   const textarea = overlay.querySelector('textarea') as HTMLTextAreaElement;
-  overlay.querySelector('.deal-close')?.addEventListener('click', closePanel);
   overlay.querySelectorAll<HTMLButtonElement>('[data-rating]').forEach((button) => {
     button.onclick = () => {
       rating = Number(button.dataset.rating);
@@ -122,12 +138,12 @@ function nextDealAction(deal: Deal): { label: string; status: Deal['status'] } |
 const offerLabels: Record<Offer['status'], string> = { pending: 'Ожидает ответа', countered: 'Встречное предложение', accepted: 'Принято', rejected: 'Отклонено', cancelled: 'Отменено' };
 const dealLabels: Record<Deal['status'], string> = { agreed: 'Согласовано', paid: 'Оплачено', shipped: 'Отправлено', received: 'Получено', completed: 'Завершено', cancelled: 'Отменено' };
 
-async function openDealCenter() {
+export async function openDealCenter() {
   closePanel();
   const overlay = document.createElement('div'); overlay.className = 'deal-overlay';
   overlay.innerHTML = `<section class="deal-sheet deal-center"><button class="deal-close" aria-label="Закрыть">×</button><span class="deal-kicker">DRIPLY DEALS</span><h2>Покупки и продажи</h2><div class="deal-loading">Загружаем сделки…</div></section>`;
   document.body.append(overlay);
-  overlay.querySelector('.deal-close')?.addEventListener('click', closePanel);
+  bindCloseControls(overlay);
   try {
     const [offers, deals] = await Promise.all([request<Offer[]>('/api/v1/me/offers'), request<Deal[]>('/api/v1/me/deals')]);
     const center = overlay.querySelector('.deal-center') as HTMLElement;
@@ -173,15 +189,6 @@ function injectOfferButton() {
   sellerSection.insertAdjacentElement('afterend', button);
 }
 
-function injectDealsEntry() {
-  const profile = document.querySelector('.profile-head');
-  if (!profile || profile.querySelector('.deal-center-button')) return;
-  const button = document.createElement('button');
-  button.className = 'deal-center-button'; button.innerHTML = '<span>⇄</span><b>Мои покупки и продажи</b><small>Предложения цены и статусы сделок</small>';
-  button.onclick = openDealCenter;
-  profile.insertAdjacentElement('afterend', button);
-}
-
 export function enableDealRuntime(): void {
   if (typeof window === 'undefined') return;
   window.addEventListener('driply:product-opened', ((event: CustomEvent<{ productId: string }>) => {
@@ -189,7 +196,7 @@ export function enableDealRuntime(): void {
     window.setTimeout(injectOfferButton, 80);
     window.setTimeout(injectOfferButton, 350);
   }) as EventListener);
-  const observer = new MutationObserver(() => { injectOfferButton(); injectDealsEntry(); });
+  const observer = new MutationObserver(() => injectOfferButton());
   observer.observe(document.body, { childList: true, subtree: true });
   auth.session().then((session) => { currentUserId = session?.user.id || ''; }).catch(() => undefined);
 }
