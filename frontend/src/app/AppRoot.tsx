@@ -126,6 +126,16 @@ export default function AppRoot() {
     return selectedCountry.cities.filter((city) => city.toLocaleLowerCase('ru').includes(query)).slice(0, 6);
   }, [draft.city, selectedCountry]);
 
+  const returnToLogin = async (userId?: string) => {
+    if (userId) clearCachedProfile(userId);
+    setProfile(null);
+    setSession(null);
+    setDraft(emptyProfile);
+    setMode('login');
+    setError('Сессия истекла. Войди в аккаунт заново.');
+    await auth.signOut().catch(() => undefined);
+  };
+
   useEffect(() => {
     let active = true;
 
@@ -165,12 +175,18 @@ export default function AppRoot() {
         if (!active) return;
         cacheProfile(userId, value);
         setProfile(value);
+        setError('');
       })
       .catch((reason) => {
         if (!active) return;
         if (reason instanceof ApiError && reason.status === 404) {
           clearCachedProfile(userId);
           setProfile(null);
+          setError('');
+          return;
+        }
+        if (reason instanceof ApiError && reason.status === 401) {
+          void returnToLogin(userId);
           return;
         }
         if (!cached) setError('Не удалось проверить профиль. Проверь интернет и повтори попытку.');
@@ -227,6 +243,10 @@ export default function AppRoot() {
       if (session) cacheProfile(session.user.id, saved);
       setProfile(saved);
     } catch (reason) {
+      if (reason instanceof ApiError && reason.status === 401) {
+        await returnToLogin(session?.user.id);
+        return;
+      }
       setError(readableError(reason));
     } finally {
       setProfileSaving(false);
