@@ -28,32 +28,15 @@ type ProfileDraft = {
 };
 
 const PROFILE_CACHE_PREFIX = 'driply.profile.v2.';
+const ONBOARDING_MARKER = 'driply.auth.allow-onboarding';
 
 const countries: Record<string, CountryConfig> = {
-  RU: {
-    name: 'Россия', phoneCode: '+7', phonePlaceholder: '999 123-45-67',
-    cities: ['Москва', 'Санкт-Петербург', 'Новосибирск', 'Екатеринбург', 'Казань', 'Нижний Новгород', 'Краснодар', 'Самара', 'Ростов-на-Дону', 'Уфа', 'Омск', 'Воронеж', 'Пермь', 'Волгоград', 'Сочи'],
-  },
-  BY: {
-    name: 'Беларусь', phoneCode: '+375', phonePlaceholder: '29 123-45-67',
-    cities: ['Минск', 'Бобруйск', 'Гомель', 'Могилёв', 'Витебск', 'Гродно', 'Брест', 'Барановичи', 'Пинск', 'Орша', 'Мозырь', 'Солигорск', 'Новополоцк', 'Лида'],
-  },
-  KZ: {
-    name: 'Казахстан', phoneCode: '+7', phonePlaceholder: '701 123-45-67',
-    cities: ['Алматы', 'Астана', 'Шымкент', 'Караганда', 'Актобе', 'Тараз', 'Павлодар', 'Усть-Каменогорск', 'Семей', 'Атырау', 'Костанай', 'Кызылорда', 'Актау'],
-  },
-  UA: {
-    name: 'Украина', phoneCode: '+380', phonePlaceholder: '67 123-45-67',
-    cities: ['Киев', 'Харьков', 'Одесса', 'Днепр', 'Львов', 'Запорожье', 'Кривой Рог', 'Николаев', 'Винница', 'Полтава', 'Чернигов', 'Черкассы', 'Ивано-Франковск'],
-  },
-  AM: {
-    name: 'Армения', phoneCode: '+374', phonePlaceholder: '91 123456',
-    cities: ['Ереван', 'Гюмри', 'Ванадзор', 'Абовян', 'Раздан', 'Эчмиадзин', 'Капан', 'Армавир'],
-  },
-  GE: {
-    name: 'Грузия', phoneCode: '+995', phonePlaceholder: '555 12-34-56',
-    cities: ['Тбилиси', 'Батуми', 'Кутаиси', 'Рустави', 'Гори', 'Зугдиди', 'Поти', 'Телави'],
-  },
+  RU: { name: 'Россия', phoneCode: '+7', phonePlaceholder: '999 123-45-67', cities: ['Москва', 'Санкт-Петербург', 'Новосибирск', 'Екатеринбург', 'Казань', 'Нижний Новгород', 'Краснодар', 'Самара', 'Ростов-на-Дону', 'Уфа', 'Омск', 'Воронеж', 'Пермь', 'Волгоград', 'Сочи'] },
+  BY: { name: 'Беларусь', phoneCode: '+375', phonePlaceholder: '29 123-45-67', cities: ['Минск', 'Бобруйск', 'Гомель', 'Могилёв', 'Витебск', 'Гродно', 'Брест', 'Барановичи', 'Пинск', 'Орша', 'Мозырь', 'Солигорск', 'Новополоцк', 'Лида'] },
+  KZ: { name: 'Казахстан', phoneCode: '+7', phonePlaceholder: '701 123-45-67', cities: ['Алматы', 'Астана', 'Шымкент', 'Караганда', 'Актобе', 'Тараз', 'Павлодар', 'Усть-Каменогорск', 'Семей', 'Атырау', 'Костанай', 'Кызылорда', 'Актау'] },
+  UA: { name: 'Украина', phoneCode: '+380', phonePlaceholder: '67 123-45-67', cities: ['Киев', 'Харьков', 'Одесса', 'Днепр', 'Львов', 'Запорожье', 'Кривой Рог', 'Николаев', 'Винница', 'Полтава', 'Чернигов', 'Черкассы', 'Ивано-Франковск'] },
+  AM: { name: 'Армения', phoneCode: '+374', phonePlaceholder: '91 123456', cities: ['Ереван', 'Гюмри', 'Ванадзор', 'Абовян', 'Раздан', 'Эчмиадзин', 'Капан', 'Армавир'] },
+  GE: { name: 'Грузия', phoneCode: '+995', phonePlaceholder: '555 12-34-56', cities: ['Тбилиси', 'Батуми', 'Кутаиси', 'Рустави', 'Гори', 'Зугдиди', 'Поти', 'Телави'] },
 };
 
 const emptyProfile: ProfileDraft = {
@@ -85,19 +68,22 @@ function readCachedProfile(userId: string): ApiProfile | null {
 }
 
 function cacheProfile(userId: string, value: ApiProfile): void {
-  try {
-    localStorage.setItem(profileCacheKey(userId), JSON.stringify(value));
-  } catch {
-    // Private browsing can disable storage. The live profile still works.
-  }
+  try { localStorage.setItem(profileCacheKey(userId), JSON.stringify(value)); } catch { /* ignore */ }
 }
 
 function clearCachedProfile(userId: string): void {
+  try { localStorage.removeItem(profileCacheKey(userId)); } catch { /* ignore */ }
+}
+
+function readOnboardingMarker(): boolean {
+  try { return sessionStorage.getItem(ONBOARDING_MARKER) === '1'; } catch { return false; }
+}
+
+function setOnboardingMarker(enabled: boolean): void {
   try {
-    localStorage.removeItem(profileCacheKey(userId));
-  } catch {
-    // Ignore unavailable storage.
-  }
+    if (enabled) sessionStorage.setItem(ONBOARDING_MARKER, '1');
+    else sessionStorage.removeItem(ONBOARDING_MARKER);
+  } catch { /* ignore */ }
 }
 
 function formatLocalPhone(value: string): string {
@@ -112,6 +98,7 @@ export default function AppRoot() {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<ApiProfile | null>(null);
   const [profileState, setProfileState] = useState<ProfileState>('idle');
+  const [allowOnboarding, setAllowOnboarding] = useState(readOnboardingMarker);
   const [loading, setLoading] = useState(true);
   const [profileSaving, setProfileSaving] = useState(false);
   const [mode, setMode] = useState<AuthMode>('login');
@@ -128,30 +115,25 @@ export default function AppRoot() {
     return selectedCountry.cities.filter((city) => city.toLocaleLowerCase('ru').includes(query)).slice(0, 6);
   }, [draft.city, selectedCountry]);
 
-  const returnToLogin = async (userId?: string) => {
+  const returnToLogin = async (userId?: string, text = 'Сессия истекла. Войди в аккаунт заново.') => {
     if (userId) clearCachedProfile(userId);
+    setOnboardingMarker(false);
+    setAllowOnboarding(false);
     setProfile(null);
     setProfileState('idle');
     setSession(null);
     setDraft(emptyProfile);
     setMode('login');
-    setError('Сессия истекла. Войди в аккаунт заново.');
+    setError(text);
     await auth.signOut().catch(() => undefined);
   };
 
   useEffect(() => {
     let active = true;
-
     auth.session()
-      .then((value) => {
-        if (active) setSession(value);
-      })
-      .catch((reason) => {
-        if (active) setError(readableError(reason));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
+      .then((value) => { if (active) setSession(value); })
+      .catch((reason) => { if (active) setError(readableError(reason)); })
+      .finally(() => { if (active) setLoading(false); });
 
     const subscription = auth.onChange((value) => {
       if (!active) return;
@@ -180,6 +162,8 @@ export default function AppRoot() {
     api.myProfile()
       .then((value) => {
         if (!active) return;
+        setOnboardingMarker(false);
+        setAllowOnboarding(false);
         cacheProfile(userId, value);
         setProfile(value);
         setProfileState('ready');
@@ -190,8 +174,12 @@ export default function AppRoot() {
         if (reason instanceof ApiError && (reason.status === 404 || reason.status === 409)) {
           clearCachedProfile(userId);
           setProfile(null);
-          setProfileState('missing');
-          setError('');
+          if (allowOnboarding) {
+            setProfileState('missing');
+            setError('');
+          } else {
+            void returnToLogin(userId, 'Для этого аккаунта профиль не найден. Войди с email, к которому привязан профиль dooista.');
+          }
           return;
         }
         if (reason instanceof ApiError && reason.status === 401) {
@@ -202,10 +190,8 @@ export default function AppRoot() {
         if (!cached) setError('Не удалось загрузить профиль. Обнови страницу или проверь интернет.');
       });
 
-    return () => {
-      active = false;
-    };
-  }, [session]);
+    return () => { active = false; };
+  }, [session, allowOnboarding]);
 
   const submitAuth = async (event: FormEvent) => {
     event.preventDefault();
@@ -215,10 +201,14 @@ export default function AppRoot() {
 
     try {
       if (mode === 'login') {
+        setOnboardingMarker(false);
+        setAllowOnboarding(false);
         const nextSession = await auth.signIn(email.trim(), password);
         setProfileState('checking');
         setSession(nextSession);
       } else {
+        setOnboardingMarker(true);
+        setAllowOnboarding(true);
         const user = await auth.signUp(email.trim(), password);
         if (user?.identities?.length === 0) throw new Error('Этот email уже зарегистрирован');
         const nextSession = await auth.session();
@@ -231,6 +221,8 @@ export default function AppRoot() {
         }
       }
     } catch (reason) {
+      setOnboardingMarker(false);
+      setAllowOnboarding(false);
       setError(readableError(reason));
     } finally {
       setLoading(false);
@@ -253,6 +245,8 @@ export default function AppRoot() {
         city: draft.city.trim(),
         bio: draft.bio.trim() || null,
       });
+      setOnboardingMarker(false);
+      setAllowOnboarding(false);
       if (session) cacheProfile(session.user.id, saved);
       setProfile(saved);
       setProfileState('ready');
@@ -269,13 +263,7 @@ export default function AppRoot() {
 
   const changeCountry = (countryCode: string) => {
     const country = countries[countryCode];
-    setDraft((current) => ({
-      ...current,
-      country_code: countryCode,
-      phone_code: country.phoneCode,
-      phone: '',
-      city: '',
-    }));
+    setDraft((current) => ({ ...current, country_code: countryCode, phone_code: country.phoneCode, phone: '', city: '' }));
   };
 
   if (loading || (session && profileState === 'checking')) {
@@ -315,11 +303,12 @@ export default function AppRoot() {
         <b>Не удалось загрузить профиль</b>
         <p>{error}</p>
         <button className="auth-primary" type="button" onClick={() => window.location.reload()}>Повторить</button>
+        <button className="auth-switch" type="button" onClick={() => void returnToLogin(session.user.id, '')}>Войти в другой аккаунт</button>
       </main>
     );
   }
 
-  if (profileState === 'missing') {
+  if (profileState === 'missing' && allowOnboarding) {
     return (
       <main className="auth-shell onboarding-shell">
         <section className="auth-card onboarding-card">
