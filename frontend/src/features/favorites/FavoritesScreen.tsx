@@ -15,7 +15,6 @@ type Props = {
 export default function FavoritesScreen({
   products,
   hasProducts,
-  onBack,
   onNotifications,
   onFilters,
   onProfileSettings,
@@ -24,8 +23,7 @@ export default function FavoritesScreen({
     <>
       <AppHeader
         title="Избранное"
-        back
-        onBack={onBack}
+        back={false}
         onNotifications={onNotifications}
         onFilters={onFilters}
         onProfileSettings={onProfileSettings}
