@@ -1,6 +1,7 @@
 import { auth } from './auth';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+const PROFILE_REQUEST_TIMEOUT_MS = 10000;
 
 export type ProductStatus = 'draft' | 'active' | 'reserved' | 'sold' | 'archived';
 export type SwipeAction = 'like' | 'skip';
@@ -62,6 +63,14 @@ async function request<T>(path: string, options?: RequestInit, protectedRoute = 
   return response.json() as Promise<T>;
 }
 
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timeoutId = 0;
+  const timeout = new Promise<T>((_, reject) => {
+    timeoutId = window.setTimeout(() => reject(new ApiError(408, message)), timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timeoutId));
+}
+
 function cacheKey(key: string) { return `${CACHE_PREFIX}${key}`; }
 
 function readCache<T>(key: string): T | null {
@@ -106,7 +115,11 @@ export const api = {
   },
   product: (productId: string) => cachedRequest(`product:${productId}`, () => request<ApiProduct>(`/api/v1/products/${productId}`)),
   profile: (profileId: string) => cachedRequest(`profile:${profileId}`, () => request<ApiProfile>(`/api/v1/profiles/${profileId}`)),
-  myProfile: () => request<ApiProfile>('/api/v1/me/profile', undefined, true),
+  myProfile: () => withTimeout(
+    request<ApiProfile>('/api/v1/me/profile', undefined, true),
+    PROFILE_REQUEST_TIMEOUT_MS,
+    'Сервер слишком долго загружает профиль. Нажми «Повторить».',
+  ),
   saveMyProfile: async (payload: ProfileInput) => {
     const result = await request<ApiProfile>('/api/v1/me/profile', { method: 'PUT', body: JSON.stringify(payload) }, true);
     clearCache(`profile:${result.id}`);
