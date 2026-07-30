@@ -1,21 +1,15 @@
 import { useEffect, useState } from 'react';
-import { LoaderCircle } from 'lucide-react';
 
 import EditProfileScreen from './EditProfileScreen';
 import MarketplaceApp from './MarketplaceApp';
 import { api, type ApiProfile } from '../lib/api';
 import { auth } from '../lib/auth';
 
-const PROFILE_CACHE_PREFIX = 'driply.profile.';
+type Props = {
+  profile: ApiProfile;
+};
 
-function readCachedProfile(userId: string): ApiProfile | null {
-  try {
-    const value = localStorage.getItem(`${PROFILE_CACHE_PREFIX}${userId}`);
-    return value ? JSON.parse(value) as ApiProfile : null;
-  } catch {
-    return null;
-  }
-}
+const PROFILE_CACHE_PREFIX = 'driply.profile.v2.';
 
 function cacheProfile(userId: string, value: ApiProfile) {
   try {
@@ -25,24 +19,30 @@ function cacheProfile(userId: string, value: ApiProfile) {
   }
 }
 
-export default function AppStable() {
-  const [profile, setProfile] = useState<ApiProfile | null>(null);
-  const [userId, setUserId] = useState('');
+export default function AppStable({ profile: initialProfile }: Props) {
+  const [profile, setProfile] = useState<ApiProfile>(initialProfile);
+  const [userId, setUserId] = useState(initialProfile.id);
   const [editingProfile, setEditingProfile] = useState(false);
 
   useEffect(() => {
+    setProfile(initialProfile);
+    setUserId(initialProfile.id);
+  }, [initialProfile]);
+
+  useEffect(() => {
     let active = true;
+
     auth.session().then((session) => {
       if (!active || !session) return;
       setUserId(session.user.id);
-      const cached = readCachedProfile(session.user.id);
-      if (cached) setProfile(cached);
+
       api.myProfile().then((value) => {
         if (!active) return;
         setProfile(value);
         cacheProfile(session.user.id, value);
       }).catch(() => undefined);
-    });
+    }).catch(() => undefined);
+
     return () => { active = false; };
   }, []);
 
@@ -63,10 +63,6 @@ export default function AppStable() {
     document.addEventListener('click', openSettings, true);
     return () => document.removeEventListener('click', openSettings, true);
   }, []);
-
-  if (!profile) {
-    return <main className="auth-shell auth-loading"><LoaderCircle className="spin" /><b>Открываем DRIPLY</b></main>;
-  }
 
   if (editingProfile) {
     return <EditProfileScreen
