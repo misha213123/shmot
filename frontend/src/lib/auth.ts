@@ -42,8 +42,20 @@ export const auth = {
   },
 
   async accessToken(): Promise<string | null> {
-    const session = await this.session();
-    return session?.access_token ?? null;
+    const current = await this.session();
+    if (!current) return null;
+
+    const expiresAtMs = (current.expires_at ?? 0) * 1000;
+    const shouldRefresh = !expiresAtMs || expiresAtMs <= Date.now() + 60_000;
+    if (!shouldRefresh) return current.access_token;
+
+    const { data, error } = await supabase.auth.refreshSession();
+    if (error || !data.session) {
+      await supabase.auth.signOut().catch(() => undefined);
+      return null;
+    }
+
+    return data.session.access_token;
   },
 
   onChange(callback: (session: Session | null) => void) {
