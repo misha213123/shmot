@@ -117,9 +117,11 @@ async function enableOptionalRuntimes(): Promise<void> {
     async () => (await import('./lib/recommendationRuntime')).enableRecommendationRuntime(),
     async () => (await import('./lib/adminNavigationRuntime')).enableAdminNavigationRuntime(),
   ];
-  for (const enable of runtimes) {
-    try { await enable(); } catch (error) { console.error('Optional DRIPLY module failed to start', error); }
-  }
+
+  await Promise.allSettled(runtimes.map(async (enable) => {
+    try { await enable(); }
+    catch (error) { console.error('Optional DRIPLY module failed to start', error); }
+  }));
 }
 
-window.setTimeout(() => { void enableOptionalRuntimes(); }, 0);
+void enableOptionalRuntimes();
