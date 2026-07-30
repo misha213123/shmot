@@ -46,35 +46,22 @@ export default function AppStable({ profile: initialProfile }: Props) {
     return () => { active = false; };
   }, []);
 
-  useEffect(() => {
-    const openSettings = (event: MouseEvent) => {
-      const target = event.target as HTMLElement | null;
-      const button = target?.closest('button');
-      const topbar = button?.closest('.topbar');
-      const title = topbar?.querySelector('.brand strong')?.textContent?.trim();
-      if (!button || title !== 'Профиль') return;
-      const buttons = Array.from(topbar?.querySelectorAll('button') || []);
-      if (buttons.at(-1) !== button) return;
-      event.preventDefault();
-      event.stopPropagation();
-      setEditingProfile(true);
-    };
-
-    document.addEventListener('click', openSettings, true);
-    return () => document.removeEventListener('click', openSettings, true);
-  }, []);
-
-  if (editingProfile) {
-    return <EditProfileScreen
-      profile={profile}
-      onBack={() => setEditingProfile(false)}
-      onSaved={(saved) => {
-        setProfile(saved);
-        if (userId) cacheProfile(userId, saved);
-        setEditingProfile(false);
-      }}
-    />;
-  }
-
-  return <MarketplaceApp profile={profile} />;
+  return (
+    <>
+      <div hidden={editingProfile}>
+        <MarketplaceApp profile={profile} onEditProfile={() => setEditingProfile(true)} />
+      </div>
+      {editingProfile && (
+        <EditProfileScreen
+          profile={profile}
+          onBack={() => setEditingProfile(false)}
+          onSaved={(saved) => {
+            setProfile(saved);
+            if (userId) cacheProfile(userId, saved);
+            setEditingProfile(false);
+          }}
+        />
+      )}
+    </>
+  );
 }
