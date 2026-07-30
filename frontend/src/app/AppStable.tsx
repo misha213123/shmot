@@ -46,10 +46,16 @@ export default function AppStable({ profile: initialProfile }: Props) {
     return () => { active = false; };
   }, []);
 
+  useEffect(() => {
+    const open = () => setEditingProfile(true);
+    window.addEventListener('driply:edit-profile', open);
+    return () => window.removeEventListener('driply:edit-profile', open);
+  }, []);
+
   return (
     <>
       <div hidden={editingProfile}>
-        <MarketplaceApp profile={profile} onEditProfile={() => setEditingProfile(true)} />
+        <MarketplaceApp profile={profile} />
       </div>
       {editingProfile && (
         <EditProfileScreen
