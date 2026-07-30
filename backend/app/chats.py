@@ -3,7 +3,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy import DateTime, ForeignKey, String, Text, UniqueConstraint, func, or_, select
+from sqlalchemy import DateTime, ForeignKey, Text, UniqueConstraint, func, or_, select
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
@@ -11,7 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from .auth import AuthUser, get_current_user
 from .authenticated import require_profile
 from .database import Base, get_session
-from .models import Product, ProductImage, Profile
+from .models import Notification, NotificationType, Product, ProductImage, Profile
 
 
 class Conversation(Base):
@@ -175,9 +175,29 @@ async def send_message(
     session: AsyncSession = Depends(get_session),
 ) -> MessageRead:
     conversation = await require_conversation(conversation_id, user, session)
-    message = ChatMessage(conversation_id=conversation.id, sender_id=user.id, text=payload.text.strip())
+    text = payload.text.strip()
+    message = ChatMessage(conversation_id=conversation.id, sender_id=user.id, text=text)
     session.add(message)
     conversation.updated_at = func.now()
+
+    recipient_id = conversation.seller_id if user.id == conversation.buyer_id else conversation.buyer_id
+    sender = await session.get(Profile, user.id)
+    product = await session.get(Product, conversation.product_id)
+    sender_name = sender.display_name if sender else "Пользователь"
+    product_title = product.title if product else "объявлению"
+    preview = text if len(text) <= 120 else f"{text[:117]}…"
+    session.add(
+        Notification(
+            user_id=recipient_id,
+            actor_id=user.id,
+            product_id=conversation.product_id,
+            type=NotificationType.system,
+            title=f"Новое сообщение от {sender_name}",
+            body=f"{product_title}: {preview}",
+            is_read=False,
+        )
+    )
+
     await session.commit()
     await session.refresh(message)
     return MessageRead(id=message.id, sender_id=message.sender_id, text=message.text, created_at=message.created_at)
