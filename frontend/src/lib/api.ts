@@ -37,6 +37,7 @@ export type ApiNotification = {
 };
 export type NotificationListResponse = { items: ApiNotification[]; unread_count: number };
 
+const inFlightReads = new Map<string, Promise<unknown>>();
 type CacheEnvelope<T> = { value: T; savedAt: number };
 const CACHE_PREFIX = 'driply.api-cache.v2.';
 const CACHE_MAX_AGE_MS = 1000 * 60 * 30;
@@ -46,6 +47,7 @@ class ApiError extends Error {
 }
 
 async function request<T>(path: string, options?: RequestInit, protectedRoute = false): Promise<T> {
+  const method = (options?.method || 'GET').toUpperCase();
   const headers = new Headers(options?.headers);
   headers.set('Content-Type', 'application/json');
   if (protectedRoute) {
@@ -53,14 +55,26 @@ async function request<T>(path: string, options?: RequestInit, protectedRoute = 
     if (!token) throw new ApiError(401, 'Сначала войдите в аккаунт');
     headers.set('Authorization', `Bearer ${token}`);
   }
-  const response = await fetch(`${API_URL}${path}`, { ...options, headers });
-  if (!response.ok) {
-    let message = `Ошибка API: ${response.status}`;
-    try { const body = await response.json() as { detail?: string }; if (body.detail) message = body.detail; } catch { /* non-JSON */ }
-    throw new ApiError(response.status, message);
-  }
-  if (response.status === 204) return undefined as T;
-  return response.json() as Promise<T>;
+
+  const execute = async (): Promise<T> => {
+    const response = await fetch(`${API_URL}${path}`, { ...options, headers });
+    if (!response.ok) {
+      let message = `Ошибка API: ${response.status}`;
+      try { const body = await response.json() as { detail?: string }; if (body.detail) message = body.detail; } catch { /* non-JSON */ }
+      throw new ApiError(response.status, message);
+    }
+    if (response.status === 204) return undefined as T;
+    return response.json() as Promise<T>;
+  };
+
+  if (method !== 'GET') return execute();
+  const authKey = protectedRoute ? headers.get('Authorization') || 'protected' : 'public';
+  const key = `${authKey}:${path}`;
+  const existing = inFlightReads.get(key) as Promise<T> | undefined;
+  if (existing) return existing;
+  const pending = execute().finally(() => inFlightReads.delete(key));
+  inFlightReads.set(key, pending);
+  return pending;
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
@@ -109,8 +123,6 @@ export const api = {
     const search = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => { if (value !== undefined && value !== '') search.set(key, String(value)); });
     const suffix = search.size ? `?${search}` : '';
-    // Product collections must be fresh: MarketplaceApp already has an instant local feed cache,
-    // while returning the API cache here could overwrite a newly published product with stale data.
     return request<ProductListResponse>(`/api/v1/products${suffix}`);
   },
   product: (productId: string) => cachedRequest(`product:${productId}`, () => request<ApiProduct>(`/api/v1/products/${productId}`)),
@@ -169,7 +181,7 @@ export const api = {
   followState: (sellerId: string) => request<FollowState>(`/api/v1/me/following/${sellerId}`, undefined, true),
   followSeller: (sellerId: string) => request<FollowState>(`/api/v1/me/following/${sellerId}`, { method: 'POST', body: JSON.stringify({}) }, true),
   unfollowSeller: (sellerId: string) => request<FollowState>(`/api/v1/me/following/${sellerId}`, { method: 'DELETE' }, true),
-  notifications: () => cachedRequest('me:notifications', () => request<NotificationListResponse>('/api/v1/me/notifications', undefined, true)),
+  notifications: () => request<NotificationListResponse>('/api/v1/me/notifications', undefined, true),
   readAllNotifications: () => request<void>('/api/v1/me/notifications/read-all', { method: 'POST', body: JSON.stringify({}) }, true),
   recommendations: () => cachedRequest('me:recommendations', () => request<ProductListResponse>('/api/v1/me/recommendations', undefined, true)),
   recentlyViewed: () => cachedRequest('me:recently-viewed', () => request<ProductListResponse>('/api/v1/me/recently-viewed', undefined, true)),
