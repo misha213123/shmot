@@ -66,7 +66,6 @@ function resolveVisibleProductId(): string {
 function markProductOpened(productId: string): void {
   if (!productId) return;
   activeProductId = productId;
-  // chatRuntime observes this request synchronously and stores the product id.
   void fetch(`${API_URL}/api/v1/products/${productId}/view`, { method: 'POST' }).catch(() => undefined);
   window.dispatchEvent(new CustomEvent('driply:product-opened', { detail: { productId } }));
 }
@@ -89,7 +88,7 @@ function handleClick(event: MouseEvent): void {
   if (!button) return;
   const text = button.textContent?.trim() || '';
 
-  if (!/связаться с продавцом|написать продавцу/i.test(text)) return;
+  if (!/связаться с продавцом|написать продавцу|^связаться$/i.test(text)) return;
   if (replaying) return;
 
   const productId = resolveVisibleProductId();
@@ -103,9 +102,15 @@ function handleClick(event: MouseEvent): void {
   void prepareAndReplay(button);
 }
 
+function handlePreparedProduct(event: Event): void {
+  const productId = (event as CustomEvent<{ productId?: string }>).detail?.productId || '';
+  if (productId) markProductOpened(productId);
+}
+
 export function enableChatProductContextRuntime(): void {
   if (enabled || typeof window === 'undefined') return;
   enabled = true;
   document.addEventListener('click', handleClick, true);
+  window.addEventListener('driply:prepare-chat-product', handlePreparedProduct as EventListener);
   void refreshProducts();
 }
