@@ -1,0 +1,108 @@
+name: Patch seller experience
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/patch-seller-experience.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch marketplace seller experience
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('frontend/src/app/MarketplaceApp.tsx')
+          text = path.read_text(encoding='utf-8')
+
+          text = text.replace(
+            "import CreateProductScreen from './CreateProductScreen';\n",
+            "import CreateProductScreen from './CreateProductScreen';\nimport SellerChatSheet from '../features/chat/SellerChatSheet';\n",
+            1,
+          )
+          text = text.replace(
+            "import '../styles/product-management.css';\n",
+            "import '../styles/product-management.css';\nimport '../styles/seller-chat.css';\n",
+            1,
+          )
+
+          marker = "  const [cardMotion, setCardMotion] = useState<'left' | 'right' | 'back' | null>(null);\n"
+          if marker not in text:
+            raise SystemExit('state marker not found')
+          text = text.replace(marker, marker + "  const [chatProduct, setChatProduct] = useState<ApiProduct | null>(null);\n", 1)
+
+          old_contact = """  const contactSeller = (seller: ApiProfile | null) => {
+    if (!seller?.phone) { showNotice('Продавец пока не указал контакт'); return; }
+    if (seller.phone.startsWith('@')) window.open(`https://t.me/${seller.phone.slice(1)}`, '_blank', 'noopener,noreferrer');
+    else window.location.href = `tel:${seller.phone.replace(/\\s/g, '')}`;
+  };
+"""
+          new_contact = """  const contactSeller = (seller: ApiProfile | null) => {
+    const product = selectedProduct || sellerProducts[0];
+    if (!product) { showNotice('Сначала открой объявление продавца'); return; }
+    setChatProduct(product);
+  };
+
+  const chatSeller = chatProduct ? (
+    selectedSeller?.id === chatProduct.seller_id ? selectedSeller : {
+      id: chatProduct.seller.id,
+      email: null,
+      username: chatProduct.seller.username,
+      display_name: chatProduct.seller.display_name,
+      avatar_url: chatProduct.seller.avatar_url,
+      phone: null,
+      country_code: chatProduct.seller.country_code,
+      city: chatProduct.seller.city,
+      bio: null,
+      is_verified: chatProduct.seller.is_verified,
+      rating: chatProduct.seller.rating,
+      created_at: '',
+    }
+  ) : null;
+"""
+          if old_contact not in text:
+            raise SystemExit('contactSeller block not found')
+          text = text.replace(old_contact, new_contact, 1)
+
+          old_detail = """{isOwn ? <section className=\"own-product-management motion-pop\"><div><h3>Управление объявлением</h3><span className={`management-current status-${product.status}`}>{statusLabels[product.status]}</span></div><div className=\"management-actions\"><button disabled={managingProduct || product.status === 'active'} onClick={() => updateOwnStatus(product, 'active')}><CheckCircle2 /> Активировать</button><button disabled={managingProduct || product.status === 'sold'} onClick={() => updateOwnStatus(product, 'sold')}><CheckCircle2 /> Продано</button><button disabled={managingProduct || product.status === 'archived'} onClick={() => updateOwnStatus(product, 'archived')}><Archive /> В архив</button><button className=\"delete-product-button\" disabled={managingProduct} onClick={() => deleteOwnProduct(product)}><Trash2 /> Удалить</button></div></section> : <><h3>Продавец</h3><div className=\"detail-seller\"><div className=\"avatar\">{initials(product.seller.display_name || product.seller.username)}</div><div><b>{product.seller.username}{product.seller.is_verified ? ' ✓' : ''}</b><small>{product.seller.city} · ★ {product.seller.rating}</small></div><button onClick={() => openSeller(product)}>Профиль</button></div><button className=\"primary-button\" onClick={() => openSeller(product)}><MessageCircle size={19} /> Связаться с продавцом</button></>}
+"""
+          new_detail = """{isOwn ? <section className=\"own-product-management motion-pop\"><div><h3>Управление объявлением</h3><span className={`management-current status-${product.status}`}>{statusLabels[product.status]}</span></div><div className=\"management-actions\"><button disabled={managingProduct || product.status === 'active'} onClick={() => updateOwnStatus(product, 'active')}><CheckCircle2 /> Активировать</button><button disabled={managingProduct || product.status === 'sold'} onClick={() => updateOwnStatus(product, 'sold')}><CheckCircle2 /> Продано</button><button disabled={managingProduct || product.status === 'archived'} onClick={() => updateOwnStatus(product, 'archived')}><Archive /> В архив</button><button className=\"delete-product-button\" disabled={managingProduct} onClick={() => deleteOwnProduct(product)}><Trash2 /> Удалить</button></div></section> : <><h3>Продавец</h3><div className=\"detail-seller\"><div className=\"avatar\">{initials(product.seller.display_name || product.seller.username)}</div><div><b>@{product.seller.username}{product.seller.is_verified ? ' ✓' : ''}</b><small>{product.seller.city} · ★ {product.seller.rating}</small></div><button onClick={() => openSeller(product)}>Профиль</button></div><div className=\"detail-seller-actions\"><button className={liked.includes(product.id) ? 'is-liked' : ''} onClick={() => toggleLike(product)}><Heart size={18} fill={liked.includes(product.id) ? 'currentColor' : 'none'} /> {liked.includes(product.id) ? 'В избранном' : 'В избранное'}</button><button onClick={() => showNotice('Предложение цены будет отправлено в чат')}>Предложить цену</button><button className=\"primary\" onClick={() => setChatProduct(product)}><MessageCircle size={19} /> Написать продавцу</button></div></>}
+"""
+          if old_detail not in text:
+            raise SystemExit('product seller block not found')
+          text = text.replace(old_detail, new_detail, 1)
+
+          old_seller_button = "<button className=\"primary-button seller-contact\" onClick={() => contactSeller(selectedSeller)}><Phone size={18} /> Связаться</button>"
+          new_seller_button = "<button className=\"primary-button seller-contact\" onClick={() => contactSeller(selectedSeller)}><MessageCircle size={18} /> Написать продавцу</button>"
+          if old_seller_button not in text:
+            raise SystemExit('seller profile contact button not found')
+          text = text.replace(old_seller_button, new_seller_button, 1)
+
+          old_return = "return <main className={`app-shell ${screen === 'feed' ? 'feed-screen' : ''}`}>{notice && <div className=\"toast\">{notice}</div>}<section className=\"screen-transition\">{content}</section><BottomNavigation activeScreen={mainScreen} onNavigate={navigate} /></main>;"
+          new_return = "return <main className={`app-shell ${screen === 'feed' ? 'feed-screen' : ''}`}>{notice && <div className=\"toast\">{notice}</div>}<section className=\"screen-transition\">{content}</section><BottomNavigation activeScreen={mainScreen} onNavigate={navigate} />{chatProduct && chatSeller && <SellerChatSheet seller={chatSeller} product={chatProduct} onClose={() => setChatProduct(null)} />}</main>;"
+          if old_return not in text:
+            raise SystemExit('main return block not found')
+          text = text.replace(old_return, new_return, 1)
+
+          path.write_text(text, encoding='utf-8')
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm ci && npm run build
+
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/src/app/MarketplaceApp.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "feat(seller): add chat and seller actions"
+          git push
