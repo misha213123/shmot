@@ -1,5 +1,6 @@
 let started = false;
 let suppressClickUntil = 0;
+let syntheticActivation = false;
 
 type DragState = {
   card: HTMLElement;
@@ -12,6 +13,16 @@ type DragState = {
 
 let drag: DragState | null = null;
 
+const CLOSE_SELECTOR = [
+  '.deal-close',
+  '.modal-close',
+  '.sheet-close',
+  '.dialog-close',
+  '.recommendation-close',
+  'button[aria-label="Закрыть"]',
+  'button[aria-label="Закрыть окно"]',
+].join(',');
+
 function closestElement(target: EventTarget | null, selector: string): HTMLElement | null {
   return target instanceof Element ? target.closest<HTMLElement>(selector) : null;
 }
@@ -19,26 +30,24 @@ function closestElement(target: EventTarget | null, selector: string): HTMLEleme
 function closeDealOverlay(event?: Event): void {
   event?.preventDefault();
   event?.stopPropagation();
-  if ('stopImmediatePropagation' in (event || {})) event?.stopImmediatePropagation();
+  event?.stopImmediatePropagation();
   document.querySelectorAll('.deal-overlay').forEach((overlay) => overlay.remove());
   document.documentElement.classList.remove('deal-open');
   document.body.style.removeProperty('overflow');
 }
 
-function openDealFromFirstTap(button: HTMLElement, event: Event): void {
+function activateOnce(button: HTMLButtonElement, event: Event): void {
   event.preventDefault();
   event.stopPropagation();
   event.stopImmediatePropagation();
 
-  const handler = (button as HTMLButtonElement).onclick;
-  if (typeof handler === 'function') {
-    const safeHandler = handler as unknown as (this: HTMLButtonElement, event: Event) => unknown;
-    safeHandler.call(button as HTMLButtonElement, event);
-  } else {
-    window.setTimeout(() => button.click(), 0);
+  syntheticActivation = true;
+  try {
+    button.click();
+  } finally {
+    syntheticActivation = false;
   }
-
-  suppressClickUntil = performance.now() + 500;
+  suppressClickUntil = performance.now() + 550;
 }
 
 function resetCard(card: HTMLElement): void {
@@ -124,18 +133,28 @@ function finishSwipeWithState(state: DragState, direction: 'left' | 'right'): vo
 }
 
 function onPointerUpCapture(event: PointerEvent): void {
-  const close = closestElement(event.target, '.deal-close');
-  if (close) {
-    closeDealOverlay(event);
-    suppressClickUntil = performance.now() + 500;
+  if (syntheticActivation || event.button !== 0) return;
+
+  const close = closestElement(event.target, CLOSE_SELECTOR);
+  if (close instanceof HTMLButtonElement) {
+    if (close.matches('.deal-close')) {
+      closeDealOverlay(event);
+      suppressClickUntil = performance.now() + 550;
+    } else {
+      activateOnce(close, event);
+    }
     return;
   }
 
-  const dealButton = closestElement(event.target, '.deal-center-button');
-  if (dealButton) openDealFromFirstTap(dealButton, event);
+  const navigationButton = closestElement(event.target, '.bottom-nav button');
+  if (navigationButton instanceof HTMLButtonElement) {
+    activateOnce(navigationButton, event);
+  }
 }
 
 function onClickCapture(event: MouseEvent): void {
+  if (syntheticActivation) return;
+
   const close = closestElement(event.target, '.deal-close');
   if (close) {
     closeDealOverlay(event);
@@ -143,9 +162,8 @@ function onClickCapture(event: MouseEvent): void {
   }
 
   if (performance.now() < suppressClickUntil) {
-    const card = closestElement(event.target, '.draggable-card');
-    const dealButton = closestElement(event.target, '.deal-center-button');
-    if (card || dealButton) {
+    const protectedTarget = closestElement(event.target, `.draggable-card, .bottom-nav button, ${CLOSE_SELECTOR}`);
+    if (protectedTarget) {
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
@@ -183,6 +201,7 @@ function installFullscreenFeedStyles(): void {
     .feed-screen .bottom-nav button.active{color:#fff}
     .feed-screen .bottom-nav button.active:before{background:#fff}
     .feed-screen .bottom-nav .create{background:#fff;color:#111}
+    .bottom-nav button,${CLOSE_SELECTOR}{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
     @media (max-height:720px){.feed-screen .swipe-actions{bottom:calc(72px + env(safe-area-inset-bottom))!important}.feed-screen .top-copy,.feed-screen .new-badge{top:62px}.feed-screen .bottom-copy,.feed-screen .likes{bottom:20px}}
   `;
   document.head.append(style);
