@@ -19,7 +19,6 @@ export default function SearchScreen({
   results,
   hasResults,
   onQueryChange,
-  onBack,
   onNotifications,
   onFilters,
   onProfileSettings,
@@ -28,8 +27,7 @@ export default function SearchScreen({
     <>
       <AppHeader
         title="Поиск"
-        back
-        onBack={onBack}
+        back={false}
         onNotifications={onNotifications}
         onFilters={onFilters}
         onProfileSettings={onProfileSettings}
