@@ -26,7 +26,7 @@ type ProfileDraft = {
   bio: string;
 };
 
-const PROFILE_CACHE_PREFIX = 'driply.profile.';
+const PROFILE_CACHE_PREFIX = 'driply.profile.v2.';
 
 const countries: Record<string, CountryConfig> = {
   RU: {
@@ -158,9 +158,6 @@ export default function AppRoot() {
     const userId = session.user.id;
     const cached = readCachedProfile(userId);
 
-    // Never block the interface on a sleeping Render instance.
-    // Returning users open the marketplace instantly from cache.
-    // New users see onboarding immediately while the API refresh runs in background.
     setProfile(cached);
 
     api.myProfile()
@@ -176,7 +173,6 @@ export default function AppRoot() {
           setProfile(null);
           return;
         }
-        // Keep cached UI available during temporary network or cold-start issues.
         if (!cached) setError('Не удалось проверить профиль. Проверь интернет и повтори попытку.');
       });
 
@@ -289,18 +285,21 @@ export default function AppRoot() {
             <label>Username<input value={draft.username} onChange={(event) => setDraft({ ...draft, username: event.target.value })} placeholder="drip.collector" minLength={3} pattern="[a-zA-Z0-9._-]+" required /></label>
             <div className="auth-row">
               <label>Страна<select value={draft.country_code} onChange={(event) => changeCountry(event.target.value)}>{Object.entries(countries).map(([code, country]) => <option key={code} value={code}>{country.name}</option>)}</select></label>
-              <label className="city-field">Город<input list="city-options" autoComplete="off" value={draft.city} onChange={(event) => setDraft({ ...draft, city: event.target.value })} placeholder="Начните вводить город" required /><datalist id="city-options">{citySuggestions.map((city) => <option key={city} value={city} />)}</datalist></label>
+              <label>Город<input value={draft.city} onChange={(event) => setDraft({ ...draft, city: event.target.value })} list="city-suggestions" required /></label>
             </div>
-            <label>Телефон<div className="phone-field"><select aria-label="Код страны" value={draft.phone_code} onChange={(event) => setDraft({ ...draft, phone_code: event.target.value })}>{Object.entries(countries).map(([code, country]) => <option key={code} value={country.phoneCode}>{country.phoneCode} · {code}</option>)}</select><input type="tel" inputMode="tel" autoComplete="tel-national" value={draft.phone} onChange={(event) => setDraft({ ...draft, phone: formatLocalPhone(event.target.value) })} placeholder={selectedCountry.phonePlaceholder} /></div></label>
-            <label>О себе<textarea rows={3} value={draft.bio} onChange={(event) => setDraft({ ...draft, bio: event.target.value })} placeholder="Что продаёшь, как отправляешь товары" /></label>
+            <datalist id="city-suggestions">{citySuggestions.map((city) => <option key={city} value={city} />)}</datalist>
+            <label>Телефон<div className="phone-input"><span>{draft.phone_code}</span><input value={draft.phone} onChange={(event) => setDraft({ ...draft, phone: formatLocalPhone(event.target.value) })} placeholder={selectedCountry.phonePlaceholder} inputMode="tel" /></div></label>
+            <label>О себе<textarea value={draft.bio} onChange={(event) => setDraft({ ...draft, bio: event.target.value })} placeholder="Что продаёшь и какой стиль любишь" maxLength={300} /></label>
             {error && <p className="form-alert error">{error}</p>}
-            <button className="auth-primary" type="submit" disabled={profileSaving}>{profileSaving ? <LoaderCircle className="spin" /> : <ArrowRight />}Перейти в DRIPLY</button>
+            <button className="auth-primary" type="submit" disabled={profileSaving}>
+              {profileSaving ? <LoaderCircle className="spin" /> : <ArrowRight />}
+              Создать профиль
+            </button>
           </form>
-          <button className="auth-switch" onClick={() => auth.signOut()}>Выйти из аккаунта</button>
         </section>
       </main>
     );
   }
 
-  return <AppStable />;
+  return <AppStable profile={profile} />;
 }
