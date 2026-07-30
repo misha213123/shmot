@@ -22,24 +22,22 @@ $$;
 revoke all on function public.is_driply_admin(uuid) from public;
 grant execute on function public.is_driply_admin(uuid) to authenticated;
 
--- Turn RLS on for every application table that currently exists.
 do $$
 declare
-  table_name text;
+  app_table_name text;
 begin
-  foreach table_name in array array[
+  foreach app_table_name in array array[
     'admin_roles','chat_messages','conversations','deals','favorites','follows',
     'notifications','price_offers','product_images','product_reports','product_views',
     'products','profiles','reservations','reviews','swipe_actions'
   ] loop
-    if to_regclass(format('public.%I', table_name)) is not null then
-      execute format('alter table public.%I enable row level security', table_name);
-      execute format('alter table public.%I force row level security', table_name);
+    if to_regclass(format('public.%I', app_table_name)) is not null then
+      execute format('alter table public.%I enable row level security', app_table_name);
+      execute format('alter table public.%I force row level security', app_table_name);
     end if;
   end loop;
 end $$;
 
--- Remove old policies so this migration is repeatable.
 do $$
 declare
   item record;
@@ -58,7 +56,6 @@ begin
   end loop;
 end $$;
 
--- Public marketplace data.
 create policy profiles_public_read on public.profiles
 for select to anon, authenticated
 using (true);
@@ -108,24 +105,23 @@ with check (
   exists (select 1 from public.products p where p.id = product_images.product_id and (p.seller_id = auth.uid() or public.is_driply_admin()))
 );
 
--- Conversations: adapt to the participant column names present in this schema.
 do $$
 declare
   participant_expr text;
 begin
   if to_regclass('public.conversations') is null then return; end if;
 
-  if exists (select 1 from information_schema.columns where table_schema='public' and table_name='conversations' and column_name='buyer_id')
-     and exists (select 1 from information_schema.columns where table_schema='public' and table_name='conversations' and column_name='seller_id') then
+  if exists (select 1 from information_schema.columns c where c.table_schema='public' and c.table_name='conversations' and c.column_name='buyer_id')
+     and exists (select 1 from information_schema.columns c where c.table_schema='public' and c.table_name='conversations' and c.column_name='seller_id') then
     participant_expr := '(buyer_id = auth.uid() or seller_id = auth.uid() or public.is_driply_admin())';
-  elsif exists (select 1 from information_schema.columns where table_schema='public' and table_name='conversations' and column_name='participant_one_id')
-     and exists (select 1 from information_schema.columns where table_schema='public' and table_name='conversations' and column_name='participant_two_id') then
+  elsif exists (select 1 from information_schema.columns c where c.table_schema='public' and c.table_name='conversations' and c.column_name='participant_one_id')
+     and exists (select 1 from information_schema.columns c where c.table_schema='public' and c.table_name='conversations' and c.column_name='participant_two_id') then
     participant_expr := '(participant_one_id = auth.uid() or participant_two_id = auth.uid() or public.is_driply_admin())';
-  elsif exists (select 1 from information_schema.columns where table_schema='public' and table_name='conversations' and column_name='user_one_id')
-     and exists (select 1 from information_schema.columns where table_schema='public' and table_name='conversations' and column_name='user_two_id') then
+  elsif exists (select 1 from information_schema.columns c where c.table_schema='public' and c.table_name='conversations' and c.column_name='user_one_id')
+     and exists (select 1 from information_schema.columns c where c.table_schema='public' and c.table_name='conversations' and c.column_name='user_two_id') then
     participant_expr := '(user_one_id = auth.uid() or user_two_id = auth.uid() or public.is_driply_admin())';
   else
-    raise exception 'Cannot create secure conversations policy: participant columns were not recognized';
+    participant_expr := 'public.is_driply_admin()';
   end if;
 
   execute format('create policy conversations_participants_select on public.conversations for select to authenticated using %s', participant_expr);
@@ -133,7 +129,6 @@ begin
   execute format('create policy conversations_participants_update on public.conversations for update to authenticated using %s with check %s', participant_expr, participant_expr);
 end $$;
 
--- Chat messages are visible only to conversation participants.
 do $$
 declare
   conversation_expr text;
@@ -141,20 +136,20 @@ declare
 begin
   if to_regclass('public.chat_messages') is null then return; end if;
 
-  if exists (select 1 from information_schema.columns where table_schema='public' and table_name='conversations' and column_name='buyer_id')
-     and exists (select 1 from information_schema.columns where table_schema='public' and table_name='conversations' and column_name='seller_id') then
+  if exists (select 1 from information_schema.columns c where c.table_schema='public' and c.table_name='conversations' and c.column_name='buyer_id')
+     and exists (select 1 from information_schema.columns c where c.table_schema='public' and c.table_name='conversations' and c.column_name='seller_id') then
     conversation_expr := 'exists (select 1 from public.conversations c where c.id = chat_messages.conversation_id and (c.buyer_id = auth.uid() or c.seller_id = auth.uid() or public.is_driply_admin()))';
-  elsif exists (select 1 from information_schema.columns where table_schema='public' and table_name='conversations' and column_name='participant_one_id')
-     and exists (select 1 from information_schema.columns where table_schema='public' and table_name='conversations' and column_name='participant_two_id') then
+  elsif exists (select 1 from information_schema.columns c where c.table_schema='public' and c.table_name='conversations' and c.column_name='participant_one_id')
+     and exists (select 1 from information_schema.columns c where c.table_schema='public' and c.table_name='conversations' and c.column_name='participant_two_id') then
     conversation_expr := 'exists (select 1 from public.conversations c where c.id = chat_messages.conversation_id and (c.participant_one_id = auth.uid() or c.participant_two_id = auth.uid() or public.is_driply_admin()))';
-  elsif exists (select 1 from information_schema.columns where table_schema='public' and table_name='conversations' and column_name='user_one_id')
-     and exists (select 1 from information_schema.columns where table_schema='public' and table_name='conversations' and column_name='user_two_id') then
+  elsif exists (select 1 from information_schema.columns c where c.table_schema='public' and c.table_name='conversations' and c.column_name='user_one_id')
+     and exists (select 1 from information_schema.columns c where c.table_schema='public' and c.table_name='conversations' and c.column_name='user_two_id') then
     conversation_expr := 'exists (select 1 from public.conversations c where c.id = chat_messages.conversation_id and (c.user_one_id = auth.uid() or c.user_two_id = auth.uid() or public.is_driply_admin()))';
   else
-    raise exception 'Cannot create secure chat_messages policy: conversation participants were not recognized';
+    conversation_expr := 'public.is_driply_admin()';
   end if;
 
-  if exists (select 1 from information_schema.columns where table_schema='public' and table_name='chat_messages' and column_name='sender_id') then
+  if exists (select 1 from information_schema.columns c where c.table_schema='public' and c.table_name='chat_messages' and c.column_name='sender_id') then
     sender_check := '(sender_id = auth.uid() or public.is_driply_admin())';
   end if;
 
@@ -162,22 +157,21 @@ begin
   execute format('create policy chat_messages_participants_insert on public.chat_messages for insert to authenticated with check ((%s) and %s)', conversation_expr, sender_check);
 end $$;
 
--- Generic private user tables. Policies are generated only from columns that really exist.
 do $$
 declare
-  table_name text;
+  app_table_name text;
   owner_column text;
   candidates text[];
   candidate text;
-  expression text;
+  owner_expression text;
 begin
-  foreach table_name in array array[
+  foreach app_table_name in array array[
     'favorites','follows','notifications','price_offers','product_reports',
     'product_views','reservations','reviews','swipe_actions','deals'
   ] loop
-    if to_regclass(format('public.%I', table_name)) is null then continue; end if;
+    if to_regclass(format('public.%I', app_table_name)) is null then continue; end if;
 
-    candidates := case table_name
+    candidates := case app_table_name
       when 'favorites' then array['user_id','profile_id']
       when 'follows' then array['follower_id','user_id']
       when 'notifications' then array['user_id','recipient_id','profile_id']
@@ -194,29 +188,28 @@ begin
     owner_column := null;
     foreach candidate in array candidates loop
       if exists (
-        select 1 from information_schema.columns
-        where table_schema='public' and table_name=table_name and column_name=candidate
+        select 1 from information_schema.columns c
+        where c.table_schema='public' and c.table_name=app_table_name and c.column_name=candidate
       ) then owner_column := candidate; exit; end if;
     end loop;
 
     if owner_column is null then
-      raise exception 'Cannot create secure policy for %. No recognized owner column.', table_name;
+      owner_expression := 'public.is_driply_admin()';
+    else
+      owner_expression := format('(%I = auth.uid() or public.is_driply_admin())', owner_column);
     end if;
 
-    expression := format('(%I = auth.uid() or public.is_driply_admin())', owner_column);
-    execute format('create policy %I on public.%I for select to authenticated using %s', table_name || '_owner_select', table_name, expression);
-    execute format('create policy %I on public.%I for insert to authenticated with check %s', table_name || '_owner_insert', table_name, expression);
-    execute format('create policy %I on public.%I for update to authenticated using %s with check %s', table_name || '_owner_update', table_name, expression, expression);
-    execute format('create policy %I on public.%I for delete to authenticated using %s', table_name || '_owner_delete', table_name, expression);
+    execute format('create policy %I on public.%I for select to authenticated using %s', app_table_name || '_owner_select', app_table_name, owner_expression);
+    execute format('create policy %I on public.%I for insert to authenticated with check %s', app_table_name || '_owner_insert', app_table_name, owner_expression);
+    execute format('create policy %I on public.%I for update to authenticated using %s with check %s', app_table_name || '_owner_update', app_table_name, owner_expression, owner_expression);
+    execute format('create policy %I on public.%I for delete to authenticated using %s', app_table_name || '_owner_delete', app_table_name, owner_expression);
   end loop;
 end $$;
 
--- Admin role membership is private.
 create policy admin_roles_admin_read on public.admin_roles
 for select to authenticated
 using (user_id = auth.uid() or public.is_driply_admin());
 
--- Keep Realtime limited to authenticated rows allowed by the policies above.
 do $$
 begin
   if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
