@@ -21,8 +21,46 @@ from .schemas import (
 router = APIRouter(prefix="/api/v1/me", tags=["authenticated"])
 
 
+async def recover_profile_by_email(user: AuthUser, session: AsyncSession) -> Profile | None:
+    """Recover a profile left behind after the Supabase Auth user was recreated.
+
+    Supabase may issue a new user UUID when an auth account is deleted and then
+    registered again. Profiles use that UUID as their primary key, so the old
+    profile would otherwise block the same email/username forever.
+    """
+    if not user.email:
+        return None
+
+    stale = await session.scalar(select(Profile).where(Profile.email == user.email, Profile.id != user.id))
+    if stale is None:
+        return None
+
+    values = {
+        "email": user.email,
+        "username": stale.username,
+        "display_name": stale.display_name,
+        "avatar_url": stale.avatar_url,
+        "phone": stale.phone,
+        "country_code": stale.country_code,
+        "city": stale.city,
+        "bio": stale.bio,
+        "is_verified": stale.is_verified,
+        "rating": stale.rating,
+    }
+    await session.delete(stale)
+    await session.flush()
+
+    recovered = Profile(id=user.id, **values)
+    session.add(recovered)
+    await session.commit()
+    await session.refresh(recovered)
+    return recovered
+
+
 async def require_profile(user: AuthUser, session: AsyncSession) -> Profile:
     profile = await session.get(Profile, user.id)
+    if profile is None:
+        profile = await recover_profile_by_email(user, session)
     if profile is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Сначала заполните профиль")
     return profile
@@ -47,10 +85,14 @@ async def get_my_profile(user: AuthUser = Depends(get_current_user), session: As
 
 @router.put("/profile", response_model=ProfileRead)
 async def upsert_my_profile(payload: ProfileUpsert, user: AuthUser = Depends(get_current_user), session: AsyncSession = Depends(get_session)) -> Profile:
+    profile = await session.get(Profile, user.id)
+    if profile is None:
+        profile = await recover_profile_by_email(user, session)
+
     username_owner = await session.scalar(select(Profile).where(Profile.username == payload.username, Profile.id != user.id))
     if username_owner:
         raise HTTPException(status_code=409, detail="Этот username уже занят")
-    profile = await session.get(Profile, user.id)
+
     values = payload.model_dump(mode="json", exclude_none=False)
     values["country_code"] = payload.country_code.upper()
     values["avatar_url"] = str(payload.avatar_url) if payload.avatar_url else None
