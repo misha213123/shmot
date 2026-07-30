@@ -4,6 +4,7 @@ let activeProductId = '';
 let recommendations: ApiProduct[] = [];
 let recent: ApiProduct[] = [];
 let trending: ApiProduct[] = [];
+let closingOverlay = false;
 
 const symbols: Record<string, string> = { RUB: '₽', BYN: 'Br', KZT: '₸', UAH: '₴', AMD: '֏', GEL: '₾' };
 
@@ -23,9 +24,17 @@ function escapeHtml(value: string) {
 function close(event?: Event) {
   event?.preventDefault();
   event?.stopPropagation();
-  document.querySelectorAll('.recommendation-overlay').forEach((overlay) => overlay.remove());
-  document.documentElement.classList.remove('recommendation-open');
-  document.body.style.removeProperty('overflow');
+  if ('stopImmediatePropagation' in (event || {})) (event as Event).stopImmediatePropagation();
+  if (closingOverlay) return;
+  closingOverlay = true;
+  const overlay = document.querySelector<HTMLElement>('.recommendation-overlay');
+  overlay?.classList.add('is-closing');
+  window.setTimeout(() => {
+    overlay?.remove();
+    document.documentElement.classList.remove('recommendation-open');
+    document.body.style.removeProperty('overflow');
+    closingOverlay = false;
+  }, 80);
 }
 
 function productCard(product: ApiProduct) {
@@ -39,7 +48,11 @@ function productCard(product: ApiProduct) {
 }
 
 function openCollection(title: string, subtitle: string, products: ApiProduct[]) {
-  close();
+  document.querySelectorAll('.recommendation-overlay').forEach((overlay) => overlay.remove());
+  document.documentElement.classList.remove('recommendation-open');
+  document.body.style.removeProperty('overflow');
+  closingOverlay = false;
+
   const overlay = document.createElement('div');
   overlay.className = 'recommendation-overlay';
   overlay.innerHTML = `<section class="recommendation-sheet">
@@ -53,7 +66,10 @@ function openCollection(title: string, subtitle: string, products: ApiProduct[])
   document.body.style.overflow = 'hidden';
   document.body.append(overlay);
   const closeButton = overlay.querySelector<HTMLButtonElement>('.recommendation-close');
-  closeButton?.addEventListener('pointerup', close, { passive: false });
+  closeButton?.addEventListener('pointerdown', (event) => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }, { passive: false });
   closeButton?.addEventListener('click', close);
   overlay.addEventListener('click', (event) => { if (event.target === overlay) close(event); });
   overlay.querySelectorAll<HTMLElement>('[data-product-id]').forEach((button) => {
