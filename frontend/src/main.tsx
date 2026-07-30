@@ -95,18 +95,22 @@ type OptionalRuntime = () => Promise<OptionalRuntimeResult>;
 
 async function enableOptionalRuntimes(): Promise<void> {
   if (isAdminRoute) return;
-  const runtimes: OptionalRuntime[] = [
+  const critical: OptionalRuntime[] = [
+    async () => (await import('./lib/instantMarketplaceCache')).enableInstantMarketplaceCache(),
+    async () => (await import('./lib/adminNavigationRuntime')).enableAdminNavigationRuntime(),
+    async () => (await import('./lib/realtimeExperienceRuntime')).enableRealtimeExperienceRuntime(),
+    async () => (await import('./lib/chatRuntime')).enableChatRuntime(),
+    async () => (await import('./lib/notificationRuntime')).enableNotificationRuntime(),
+  ];
+  const optional: OptionalRuntime[] = [
     async () => (await import('./lib/appWarmupRuntime')).enableAppWarmupRuntime(),
     async () => (await import('./lib/mobileInteractionRuntime')).enableMobileInteractionRuntime(),
     async () => (await import('./lib/iosSwipeRuntime')).enableIosSwipeRuntime(),
     async () => (await import('./lib/feedChromeRuntime')).enableFeedChromeRuntime(),
-    async () => (await import('./lib/instantMarketplaceCache')).enableInstantMarketplaceCache(),
     async () => (await import('./lib/removeFeedLoadingText')).enableFeedLoadingCleanup(),
     async () => (await import('./lib/emptyFeedRuntime')).enableEmptyFeedRuntime(),
-    async () => (await import('./lib/notificationRuntime')).enableNotificationRuntime(),
     async () => (await import('./lib/productEditDomSync')).enableProductEditDomSync(),
     async () => (await import('./lib/chatProductContextRuntime')).enableChatProductContextRuntime(),
-    async () => (await import('./lib/chatRuntime')).enableChatRuntime(),
     async () => (await import('./lib/notificationChatBridge')).enableNotificationChatBridge(),
     async () => (await import('./lib/sellerProfileRuntime')).enableSellerProfileRuntime(),
     async () => (await import('./lib/reservationDomSync')).enableReservationDomSync(),
@@ -115,12 +119,13 @@ async function enableOptionalRuntimes(): Promise<void> {
     async () => (await import('./lib/dealRuntime')).enableDealRuntime(),
     async () => (await import('./lib/reviewRuntime')).enableReviewRuntime(),
     async () => (await import('./lib/recommendationRuntime')).enableRecommendationRuntime(),
-    async () => (await import('./lib/adminNavigationRuntime')).enableAdminNavigationRuntime(),
   ];
 
-  await Promise.allSettled(runtimes.map(async (enable) => {
-    try { await enable(); }
-    catch (error) { console.error('Optional DRIPLY module failed to start', error); }
+  await Promise.allSettled(critical.map(async (enable) => {
+    try { await enable(); } catch (error) { console.error('Critical DRIPLY module failed to start', error); }
+  }));
+  void Promise.allSettled(optional.map(async (enable) => {
+    try { await enable(); } catch (error) { console.error('Optional DRIPLY module failed to start', error); }
   }));
 }
 
