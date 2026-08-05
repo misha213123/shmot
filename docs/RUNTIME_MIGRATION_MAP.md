@@ -17,14 +17,14 @@ This document is the source of truth for removing frontend DOM patches. A runtim
 | Runtime | Current responsibility | Risk | React replacement | Sprint/status |
 |---|---|---|---|---|
 | `instantMarketplaceCache.ts` | Returns cached marketplace GET responses and refreshes in background | Global `window.fetch` patch; stale cross-feature behavior | Central query client/store with user-scoped cache | Sprint 3 — keep temporarily |
-| `adminNavigationRuntime.ts` | Detects admin rights and injects/controls admin navigation | Navigation appears late; DOM injection | Admin capability in app bootstrap + `BottomNavigation` prop | Sprint 1/2 — pending |
+| `adminNavigationRuntime.ts` | Previously injected admin navigation after permission lookup | Navigation appeared late; DOM injection | Admin capability is now resolved inside React `BottomNavigation` | Sprint 1 — **removed from bootstrap** |
 | `realtimeExperienceRuntime.ts` | Realtime messages, presence, typing, manual chat DOM updates | Patches fetch and mutates chat DOM | React chat provider/hooks and components | Sprint 9 — pending |
 | `chatRuntime.ts` | Builds conversation list/chat overlays and sends messages | Entire screen outside React; synthetic routing | `MessagesScreen`, `ConversationScreen`, chat hooks | Sprint 2/9 — pending |
 | `notificationRuntime.ts` | Injects notification center and unread badge | Competes with headers/navigation | React notification provider and screen | Sprint 2/9 — pending |
 | `appWarmupRuntime.ts` | Warms backend and prefetches core endpoints | Duplicate requests and hidden lifecycle | App bootstrap/query prefetch | Sprint 3 — pending |
-| `mobileInteractionRuntime.ts` | Swipe gesture plus global single-tap/close/nav interception and injected feed CSS | Double activations and ghost clicks | React click handlers + CSS; gesture hook only | Sprint 1 — **navigation/header interception removed; gesture kept temporarily** |
+| `mobileInteractionRuntime.ts` | Swipe gesture plus former global single-tap/close/nav interception and injected feed CSS | Double activations and ghost clicks | React click handlers + CSS; gesture hook only | Sprint 1 — **navigation/header interception removed; gesture kept temporarily** |
 | `iosSwipeRuntime.ts` | iOS-specific swipe fallback | Duplicate gesture ownership | Shared pointer/touch gesture hook | Sprint 2 — pending |
-| `feedChromeRuntime.ts` | Injects feed header controls and notification sheet | Duplicate header and notification UI | `AppHeader` + React notification screen | Sprint 1 — **disabled from bootstrap** |
+| `feedChromeRuntime.ts` | Previously injected feed header controls and notification sheet | Duplicate header and notification UI | `AppHeader` + React notification screen | Sprint 1 — **disabled from bootstrap** |
 | `removeFeedLoadingText.ts` | Hides loading copy after render | Masks loading-state defects | React skeleton/empty/error state | Sprint 2 — pending |
 | `emptyFeedRuntime.ts` | Replaces empty feed DOM | Competes with React empty state | `FeedScreen` empty state | Sprint 2 — pending |
 | `productEditDomSync.ts` | Synchronizes edit controls through DOM | Fragile selectors | Product edit React state | Sprint 2/6 — pending |
@@ -40,7 +40,7 @@ This document is the source of truth for removing frontend DOM patches. A runtim
 
 ## React ownership already present
 
-- `frontend/src/shared/navigation/BottomNavigation.tsx` owns the five primary tabs.
+- `frontend/src/shared/navigation/BottomNavigation.tsx` owns the five primary tabs and conditional admin entry.
 - `frontend/src/shared/navigation/AppHeader.tsx` owns title, back, notification, filter and profile-settings controls.
 - `frontend/src/features/search/SearchScreen.tsx` owns Search layout.
 - `frontend/src/features/favorites/FavoritesScreen.tsx` owns Favorites layout.
@@ -53,14 +53,18 @@ This document is the source of truth for removing frontend DOM patches. A runtim
 2. Removed the global deal-button DOM guard from `main.tsx`.
 3. Disabled `feedChromeRuntime` because `AppHeader` already renders the header controls.
 4. Removed bottom-navigation interception, synthetic single-tap activation, header visibility mutation and injected feed styles from `mobileInteractionRuntime`.
-5. Kept only the existing swipe gesture in `mobileInteractionRuntime` until Feed extraction supplies a React hook.
+5. Moved admin access and the admin navigation button into `BottomNavigation`; removed `adminNavigationRuntime` from bootstrap.
+6. Consolidated non-feed header rules into `react-shell.css` and deleted the superseded override stylesheet.
+7. Updated fullscreen feed CSS so React header buttons remain visible and clickable.
+8. Kept only the existing swipe gesture in `mobileInteractionRuntime` until Feed extraction supplies a React hook.
 
 ## Verification checklist
 
 - Bottom navigation reacts to one normal click/pointer activation.
 - Search, Favorites and Profile use the same centered React header.
 - Feed retains its fullscreen layout from imported CSS.
+- React notification/filter header controls remain visible on the feed.
 - No duplicate notification/header controls are injected.
 - Non-feed screens remain vertically scrollable.
-- Admin access remains available while its runtime replacement is prepared.
+- Cached admin access renders immediately and is refreshed in the background.
 - Production TypeScript/Vite build passes.
