@@ -119,11 +119,32 @@ body,
   -webkit-backdrop-filter: blur(18px);
 }
 
+.bottom-nav.has-admin-nav {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
 .bottom-nav button {
   min-width: 0;
   min-height: 48px;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+}
+
+.bottom-nav.has-admin-nav button {
+  padding-inline: 2px;
+}
+
+.bottom-nav.has-admin-nav button span {
+  font-size: 10px;
+}
+
+.bottom-nav .admin-nav-button {
+  color: #111;
+}
+
+.bottom-nav .admin-nav-button svg {
+  width: 22px;
+  height: 22px;
 }
 
 .app-shell.feed-screen {
@@ -135,6 +156,10 @@ body,
   max-height: 100dvh !important;
   padding-bottom: var(--driply-nav-total) !important;
   overflow: hidden !important;
+}
+
+@media (max-width: 380px) {
+  .bottom-nav.has-admin-nav button span { font-size: 9px; }
 }
 
 @media (min-width: 601px) {
