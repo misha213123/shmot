@@ -44,7 +44,6 @@ async function enableOptionalRuntimes(): Promise<void> {
   if (isAdminRoute) return;
   const critical: OptionalRuntime[] = [
     async () => (await import('./lib/instantMarketplaceCache')).enableInstantMarketplaceCache(),
-    async () => (await import('./lib/adminNavigationRuntime')).enableAdminNavigationRuntime(),
     async () => (await import('./lib/realtimeExperienceRuntime')).enableRealtimeExperienceRuntime(),
     async () => (await import('./lib/chatRuntime')).enableChatRuntime(),
     async () => (await import('./lib/notificationRuntime')).enableNotificationRuntime(),
