@@ -1,4 +1,4 @@
-/* React-owned application shell. Loaded last to override legacy runtime styles. */
+/* React-owned application shell. Loaded last to override legacy styles. */
 :root {
   --driply-shell-width: 430px;
   --driply-nav-height: 74px;
@@ -50,20 +50,49 @@ body,
   grid-template-columns: 44px minmax(0, 1fr) 44px;
   align-items: center;
   width: 100%;
-  min-height: 48px;
+  min-height: 54px;
+  padding: 0;
+}
+
+.topbar .icon-button {
+  display: grid;
+  visibility: visible;
+  opacity: 1;
+  touch-action: manipulation;
 }
 
 .topbar .brand {
+  grid-column: 2;
   min-width: 0;
+  width: 100%;
   align-items: center;
+  justify-self: stretch;
   text-align: center;
+  transform: none;
 }
 
 .topbar .brand strong {
+  display: block;
+  width: 100%;
   max-width: 100%;
+  margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.app-shell:not(.feed-screen) .topbar {
+  margin: 0 0 18px;
+}
+
+.app-shell:not(.feed-screen) .topbar .brand strong {
+  font-size: 22px;
+  line-height: 1.1;
+  letter-spacing: -0.7px;
+}
+
+.app-shell:not(.feed-screen) .topbar .brand span {
+  display: none;
 }
 
 .bottom-nav {
@@ -94,6 +123,7 @@ body,
   min-width: 0;
   min-height: 48px;
   touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .app-shell.feed-screen {
