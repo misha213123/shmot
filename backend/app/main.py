@@ -9,6 +9,7 @@ from .chats import router as chats_router
 from .config import get_settings
 from .database import create_database_tables
 from .deals import router as deals_router
+from .maintenance import router as maintenance_router
 from .marketplace import router as marketplace_router
 from .product_edit import router as product_edit_router
 from .recommendations import router as recommendations_router
@@ -48,6 +49,7 @@ app.include_router(product_edit_router)
 app.include_router(chats_router)
 app.include_router(reservations_router)
 app.include_router(admin_router)
+app.include_router(maintenance_router)
 app.include_router(reports_router)
 app.include_router(social_router)
 app.include_router(deals_router)
