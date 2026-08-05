@@ -1,70 +1,9 @@
-/* Fullscreen feed: centered logo, header actions, horizontal controls, white nav */
-.feed-chrome-controls {
-  position: fixed;
-  top: max(14px, env(safe-area-inset-top));
-  left: 50%;
-  width: min(100%, 430px);
-  transform: translateX(-50%);
-  z-index: 80;
-  pointer-events: none;
-}
-
-.feed-chrome-controls button {
-  position: absolute;
-  top: 0;
-  width: 46px;
-  height: 46px;
-  border: 0;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: rgba(15, 15, 15, .42);
-  color: #fff;
-  font-size: 25px;
-  font-weight: 800;
-  line-height: 1;
-  box-shadow: 0 7px 22px rgba(0, 0, 0, .22);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  pointer-events: auto;
-  transition: transform 160ms ease, background 160ms ease;
-}
-
-.feed-chrome-controls button:active {
-  transform: scale(.9);
-}
-
-.feed-notification-control {
-  left: 14px;
-}
-
-.feed-notification-control span {
-  font-size: 0;
-}
-
-.feed-notification-control span::before {
-  content: '🔔';
-  font-size: 23px;
-  filter: grayscale(1) brightness(4);
-}
-
-.feed-open-product-control {
-  right: 14px;
-}
-
-.feed-open-product-control span {
-  font-size: 27px;
-}
-
-/* The old "new" badge can be empty after product normalization. Do not render
-   an unexplained white pill in the top-right corner of the fullscreen feed. */
+/* Fullscreen feed owned by React: one header, one action row and one bottom nav. */
 .app-shell:has(.swipe-stage) .new-badge,
 .feed-screen .new-badge {
   display: none !important;
 }
 
-/* Let Safari hand horizontal movement to our touch runtime across the image,
-   including the invisible previous/next-photo tap zones. */
 .app-shell:has(.swipe-stage) .swipe-stage,
 .app-shell:has(.swipe-stage) .product-card,
 .app-shell:has(.swipe-stage) .photo-tap-zones,
@@ -76,7 +15,6 @@
   user-select: none;
 }
 
-/* Keep the DRIPLY logo precisely centered between the two header buttons. */
 .app-shell:has(.swipe-stage) .topbar,
 .feed-screen .topbar {
   position: fixed !important;
@@ -86,24 +24,35 @@
   width: min(100%, 430px) !important;
   min-height: 46px !important;
   transform: translateX(-50%) !important;
-  display: flex !important;
+  display: grid !important;
+  grid-template-columns: 46px minmax(0, 1fr) 46px !important;
   align-items: center !important;
-  justify-content: center !important;
-  padding: 0 70px !important;
+  padding: 0 14px !important;
   z-index: 70 !important;
   pointer-events: none !important;
 }
 
-.app-shell:has(.swipe-stage) .topbar > :not(.brand),
-.feed-screen .topbar > :not(.brand) {
-  display: none !important;
+.app-shell:has(.swipe-stage) .topbar .icon-button,
+.feed-screen .topbar .icon-button {
+  display: grid !important;
+  width: 46px !important;
+  height: 46px !important;
+  border-radius: 50% !important;
+  background: rgba(15, 15, 15, .42) !important;
+  color: #fff !important;
+  box-shadow: 0 7px 22px rgba(0, 0, 0, .22) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  pointer-events: auto !important;
 }
 
 .app-shell:has(.swipe-stage) .brand,
 .feed-screen .brand {
-  position: static !important;
-  transform: none !important;
+  grid-column: 2 !important;
+  min-width: 0 !important;
+  width: 100% !important;
   color: #fff !important;
+  text-align: center !important;
   pointer-events: none !important;
 }
 
@@ -114,7 +63,12 @@
   text-shadow: 0 2px 12px rgba(0,0,0,.5) !important;
 }
 
-/* Swipe controls stay in one horizontal row above the white navigation. */
+.app-shell:has(.swipe-stage) .brand span,
+.feed-screen .brand span {
+  color: rgba(255,255,255,.82) !important;
+  text-shadow: 0 2px 10px rgba(0,0,0,.45) !important;
+}
+
 .app-shell:has(.swipe-stage) .swipe-actions,
 .feed-screen .swipe-actions {
   position: fixed !important;
@@ -160,7 +114,6 @@
   color: #fff !important;
 }
 
-/* White bottom navigation on the feed. */
 .app-shell:has(.swipe-stage) .bottom-nav,
 .feed-screen .bottom-nav {
   background: #fff !important;
@@ -184,9 +137,18 @@
 }
 
 @media (max-width: 390px) {
-  .feed-chrome-controls button { width: 42px; height: 42px; }
-  .feed-notification-control { left: 10px; }
-  .feed-open-product-control { right: 10px; }
+  .app-shell:has(.swipe-stage) .topbar,
+  .feed-screen .topbar {
+    grid-template-columns: 42px minmax(0, 1fr) 42px !important;
+    padding-inline: 10px !important;
+  }
+
+  .app-shell:has(.swipe-stage) .topbar .icon-button,
+  .feed-screen .topbar .icon-button {
+    width: 42px !important;
+    height: 42px !important;
+  }
+
   .app-shell:has(.swipe-stage) .swipe-actions,
   .feed-screen .swipe-actions { gap: 9px !important; }
   .app-shell:has(.swipe-stage) .swipe-actions .round,
