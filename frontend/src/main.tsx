@@ -53,6 +53,7 @@ async function enableOptionalRuntimes(): Promise<void> {
     async () => (await import('./lib/removeFeedLoadingText')).enableFeedLoadingCleanup(),
     async () => (await import('./lib/emptyFeedRuntime')).enableEmptyFeedRuntime(),
     async () => (await import('./lib/productEditDomSync')).enableProductEditDomSync(),
+    async () => (await import('./lib/chatProductContextRuntime')).enableChatProductContextRuntime(),
     async () => (await import('./lib/sellerProfileRuntime')).enableSellerProfileRuntime(),
     async () => (await import('./lib/reservationDomSync')).enableReservationDomSync(),
     async () => (await import('./lib/reportRuntime')).enableReportRuntime(),
