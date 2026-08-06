@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import EditProfileScreen from './EditProfileScreen';
 import MarketplaceApp from './MarketplaceApp';
+import ChatCenter from '../features/chat/ChatCenter';
 import { api, type ApiProfile } from '../lib/api';
 import { auth } from '../lib/auth';
 
@@ -57,6 +58,7 @@ export default function AppStable({ profile: initialProfile }: Props) {
       <div hidden={editingProfile}>
         <MarketplaceApp profile={profile} />
       </div>
+      <ChatCenter />
       {editingProfile && (
         <EditProfileScreen
           profile={profile}

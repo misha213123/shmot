@@ -67,7 +67,13 @@ function handlePointer(event: PointerEvent): void {
   event.preventDefault();
   event.stopImmediatePropagation();
   suppressUntil = Date.now() + 500;
-  triggerTextAction('Связаться с продавцом');
+
+  const productId = sessionStorage.getItem('driply.active-product-id') || '';
+  if (productId) {
+    window.dispatchEvent(new CustomEvent('driply:start-chat', { detail: { productId } }));
+  } else {
+    window.dispatchEvent(new CustomEvent('driply:open-messages'));
+  }
 }
 
 export function enableSellerProfileRuntime(): void {
