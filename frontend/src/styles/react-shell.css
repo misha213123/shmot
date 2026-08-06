@@ -1,4 +1,4 @@
-/* React-owned application shell. Loaded last to override legacy runtime styles. */
+/* React-owned application shell. Loaded last to override legacy styles. */
 :root {
   --driply-shell-width: 430px;
   --driply-nav-height: 74px;
@@ -50,20 +50,49 @@ body,
   grid-template-columns: 44px minmax(0, 1fr) 44px;
   align-items: center;
   width: 100%;
-  min-height: 48px;
+  min-height: 54px;
+  padding: 0;
+}
+
+.topbar .icon-button {
+  display: grid;
+  visibility: visible;
+  opacity: 1;
+  touch-action: manipulation;
 }
 
 .topbar .brand {
+  grid-column: 2;
   min-width: 0;
+  width: 100%;
   align-items: center;
+  justify-self: stretch;
   text-align: center;
+  transform: none;
 }
 
 .topbar .brand strong {
+  display: block;
+  width: 100%;
   max-width: 100%;
+  margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.app-shell:not(.feed-screen) .topbar {
+  margin: 0 0 18px;
+}
+
+.app-shell:not(.feed-screen) .topbar .brand strong {
+  font-size: 22px;
+  line-height: 1.1;
+  letter-spacing: -0.7px;
+}
+
+.app-shell:not(.feed-screen) .topbar .brand span {
+  display: none;
 }
 
 .bottom-nav {
@@ -90,10 +119,32 @@ body,
   -webkit-backdrop-filter: blur(18px);
 }
 
+.bottom-nav.has-admin-nav {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
 .bottom-nav button {
   min-width: 0;
   min-height: 48px;
   touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bottom-nav.has-admin-nav button {
+  padding-inline: 2px;
+}
+
+.bottom-nav.has-admin-nav button span {
+  font-size: 10px;
+}
+
+.bottom-nav .admin-nav-button {
+  color: #111;
+}
+
+.bottom-nav .admin-nav-button svg {
+  width: 22px;
+  height: 22px;
 }
 
 .app-shell.feed-screen {
@@ -105,6 +156,10 @@ body,
   max-height: 100dvh !important;
   padding-bottom: var(--driply-nav-total) !important;
   overflow: hidden !important;
+}
+
+@media (max-width: 380px) {
+  .bottom-nav.has-admin-nav button span { font-size: 9px; }
 }
 
 @media (min-width: 601px) {

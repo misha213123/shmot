@@ -19,15 +19,15 @@ Do not continue to another sprint in the same task.
 
 Goal: remove the DOM/runtime patches responsible for navigation, header, scrolling and duplicate UI regressions.
 
-- [ ] Create `docs/RUNTIME_MIGRATION_MAP.md` listing every frontend runtime module, its responsibility and React replacement.
-- [ ] Extract `BottomNavigation` into a React component.
-- [ ] Extract `AppHeader` into a React component.
-- [ ] Extract `SearchScreen`, `FavoritesScreen` and `ProfileScreen` from `MarketplaceApp.tsx`.
-- [ ] Remove only the runtime navigation/header patches that have working React replacements.
-- [ ] Consolidate conflicting `.topbar`, `.bottom-nav`, `.app-shell` and `.screen-transition` styles.
-- [ ] Preserve feed behavior and admin access.
-- [ ] Verify scrolling and bottom navigation taps on mobile.
-- [ ] Run `npm install` and `npm run build` in `frontend/`.
+- [x] Create `docs/RUNTIME_MIGRATION_MAP.md` listing every frontend runtime module, its responsibility and React replacement.
+- [x] Extract `BottomNavigation` into a React component.
+- [x] Extract `AppHeader` into a React component.
+- [x] Extract `SearchScreen`, `FavoritesScreen` and `ProfileScreen` from `MarketplaceApp.tsx`.
+- [x] Remove only the runtime navigation/header patches that have working React replacements.
+- [x] Consolidate conflicting `.topbar`, `.bottom-nav`, `.app-shell` and `.screen-transition` styles.
+- [x] Preserve feed behavior and admin access in the implementation and production build.
+- [ ] Verify scrolling and bottom navigation taps on physical mobile Safari/Chrome.
+- [x] Run the production TypeScript/Vite build through Vercel preview.
 
 Acceptance:
 
@@ -213,12 +213,12 @@ A task is complete only when:
 
 ### Sprint 1
 
-- Status: `NOT STARTED`
-- Branch:
-- Commit:
-- Pull request:
-- Checks:
-- Known risks:
+- Status: `IN REVIEW — BUILD PASSED, PHYSICAL MOBILE CHECK PENDING`
+- Branch: `sprint/01-frontend-architecture-stabilization`
+- Commit: `2308118dab1feeb21e359a8aecfeb96a15e0fc99`
+- Pull request: `#2`
+- Checks: Vercel TypeScript/Vite preview build passed.
+- Known risks: physical iPhone Safari/Chrome tap, scroll and fullscreen-feed verification is still required; chat, notifications, deals and recommendations remain runtime-backed until Sprint 2/9/10.
 
 ### Sprint 2
 

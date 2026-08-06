@@ -117,6 +117,16 @@ async function cachedRequest<T>(key: string, loader: () => Promise<T>): Promise<
   return fresh;
 }
 
+async function refreshFavoritesCache(): Promise<void> {
+  try {
+    const session = await auth.session();
+    if (!session) return;
+    const fresh = await request<ProductListResponse>(`/api/v1/profiles/${session.user.id}/favorites`);
+    writeCache(`favorites:${session.user.id}`, fresh);
+    window.dispatchEvent(new CustomEvent('driply:favorites-refreshed', { detail: fresh }));
+  } catch { /* keep the previous cache and optimistic UI */ }
+}
+
 export const api = {
   health: () => request<{ health: string; environment: string }>('/health'),
   products: (params: Record<string, string | number | undefined> = {}) => {
@@ -161,18 +171,12 @@ export const api = {
   favorites: (profileId: string) => cachedRequest(`favorites:${profileId}`, () => request<ProductListResponse>(`/api/v1/profiles/${profileId}/favorites`)),
   addFavorite: async (productId: string) => {
     const result = await request(`/api/v1/me/products/${productId}/favorite`, { method: 'POST', body: JSON.stringify({}) }, true);
-    try {
-      const session = await auth.session();
-      if (session) clearCache(`favorites:${session.user.id}`);
-    } catch { /* ignore */ }
+    await refreshFavoritesCache();
     return result;
   },
   removeFavorite: async (productId: string) => {
     const result = await request(`/api/v1/products/${productId}/favorite`, { method: 'DELETE', body: JSON.stringify({ user_id: null }) }, true);
-    try {
-      const session = await auth.session();
-      if (session) clearCache(`favorites:${session.user.id}`);
-    } catch { /* ignore */ }
+    await refreshFavoritesCache();
     return result;
   },
   swipe: (productId: string, action: SwipeAction) => request(`/api/v1/me/products/${productId}/swipe`, { method: 'POST', body: JSON.stringify({ action }) }, true),
